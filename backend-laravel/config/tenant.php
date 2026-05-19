@@ -18,7 +18,32 @@ return [
     */
     'header' => 'X-Tenant-Id',
 
-    'slug_segment_index' => 0,
+    /** Path segment index for workplace host slug (1 = first segment after domain). */
+    'workplace_slug_segment' => (int) env('TENANT_WORKPLACE_SLUG_SEGMENT', 1),
+
+    /** Slugs that must never be treated as tenant identifiers on workplace hosts. */
+    'reserved_slugs' => [
+        'admin',
+        'api',
+        'login',
+        'register',
+        'book',
+        'staff',
+        'dashboard',
+        'appointments',
+        'services',
+        'clients',
+        'settings',
+    ],
+
+    /** Allow custom domains before DNS verification (local dev only). */
+    'allow_unverified_domains' => (bool) env('TENANT_ALLOW_UNVERIFIED_DOMAINS', true),
+
+    /**
+     * Spatie Permission team id for platform-wide roles (super_admin, office_admin).
+     * Not a real tenant row — satisfies model_has_roles.tenant_id NOT NULL.
+     */
+    'platform_team_id' => 0,
 
     /*
     |--------------------------------------------------------------------------
@@ -30,5 +55,9 @@ return [
     'default_currency' => 'USD',
 
     'default_plan' => 'starter',
+
+    'default_primary_color' => '#F8BBD0',
+
+    'default_accent_color' => '#E879A6',
 
 ];

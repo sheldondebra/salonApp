@@ -1,7 +1,10 @@
 <?php
 
-use App\Http\Middleware\EnsureSuperAdmin;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureTenantAccess;
+use App\Http\Middleware\EnsureTenantIsActive;
+use App\Http\Middleware\EnsureTenantResolved;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,12 +21,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'tenant.resolve' => ResolveTenant::class,
+            'tenant.resolved' => EnsureTenantResolved::class,
+            'tenant.active' => EnsureTenantIsActive::class,
             'tenant.access' => EnsureTenantAccess::class,
-            'super_admin' => EnsureSuperAdmin::class,
-        ]);
-
-        $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            'permission' => EnsurePermission::class,
+            'role' => EnsureRole::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

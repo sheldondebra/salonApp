@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { AppProviders } from "@/components/providers/app-providers";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -8,12 +9,21 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: {
     default: "SalonApp",
     template: "%s | SalonApp",
   },
-  description: "Multi-tenant beauty booking SaaS platform",
+  description: "Premium multi-tenant beauty booking SaaS for salons, spas, and wellness studios",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
@@ -23,8 +33,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${plusJakarta.variable} font-sans antialiased`}>
-        {children}
+      <body className={`${plusJakarta.variable} ${inter.variable} font-sans antialiased`}>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

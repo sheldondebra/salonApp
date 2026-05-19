@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Enums\RoleName;
+use App\Support\PermissionList;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -11,44 +13,30 @@ class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->forgetCachedPermissions();
+        // Global role/permission definitions are not tenant-scoped (NULL team).
+        $registrar->setPermissionsTeamId(null);
 
-        $permissions = [
-            'tenants.view',
-            'tenants.manage',
-            'bookings.view',
-            'bookings.manage',
-            'services.view',
-            'services.manage',
-            'staff.view',
-            'staff.manage',
-            'clients.view',
-            'clients.manage',
-            'analytics.view',
-            'settings.manage',
-            'billing.manage',
-        ];
+        $guard = config('permissions.guard', 'sanctum');
 
-        foreach ($permissions as $permission) {
-            Permission::findOrCreate($permission, 'sanctum');
+        $all = PermissionList::all();
+
+        Permission::query()
+            ->where('guard_name', $guard)
+            ->whereNotIn('name', $all)
+            ->delete();
+
+        foreach ($all as $permission) {
+            Permission::findOrCreate($permission, $guard);
         }
 
-        $superAdmin = Role::findOrCreate('super_admin', 'sanctum');
-        $superAdmin->syncPermissions(Permission::all());
+        $matrix = PermissionList::roleMatrix();
 
-        $tenantRoles = [
-            'tenant_owner' => $permissions,
-            'manager' => [
-                'bookings.view', 'bookings.manage', 'services.view', 'services.manage',
-                'staff.view', 'staff.manage', 'clients.view', 'clients.manage', 'analytics.view',
-            ],
-            'staff' => ['bookings.view', 'bookings.manage', 'services.view', 'clients.view'],
-            'client' => ['bookings.view'],
-        ];
-
-        foreach ($tenantRoles as $roleName => $rolePermissions) {
-            $role = Role::findOrCreate($roleName, 'sanctum');
-            $role->syncPermissions($rolePermissions);
+        foreach (RoleName::cases() as $roleName) {
+            $role = Role::findOrCreate($roleName->value, $guard);
+            $permissions = $matrix[$roleName->value] ?? [];
+            $role->syncPermissions($permissions);
         }
     }
 }

@@ -10,7 +10,11 @@ class PermissionTenantResolver implements PermissionsTeamResolver
 
     public function getPermissionsTeamId(): int|string|null
     {
-        return $this->teamId ?? TenantContext::id();
+        if ($this->teamId !== null) {
+            return $this->teamId;
+        }
+
+        return TenantContext::id() ?? config('tenant.platform_team_id', 0);
     }
 
     public function setPermissionsTeamId($id): void

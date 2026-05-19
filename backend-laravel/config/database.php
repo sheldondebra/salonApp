@@ -2,6 +2,22 @@
 
 use Illuminate\Support\Str;
 
+/**
+ * PHP 8.5 deprecates PDO::MYSQL_ATTR_SSL_CA in favor of Pdo\Mysql::ATTR_SSL_CA.
+ */
+function mysqlPdoSslCaOption(): ?int
+{
+    if (! extension_loaded('pdo_mysql')) {
+        return null;
+    }
+
+    if (class_exists(\Pdo\Mysql::class)) {
+        return \Pdo\Mysql::ATTR_SSL_CA;
+    }
+
+    return defined('PDO::MYSQL_ATTR_SSL_CA') ? PDO::MYSQL_ATTR_SSL_CA : null;
+}
+
 return [
 
     /*
@@ -57,9 +73,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => ($sslCa = mysqlPdoSslCaOption()) !== null && env('MYSQL_ATTR_SSL_CA')
+                ? array_filter([$sslCa => env('MYSQL_ATTR_SSL_CA')])
+                : [],
         ],
 
         'mariadb' => [
@@ -77,9 +93,9 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'options' => ($sslCa = mysqlPdoSslCaOption()) !== null && env('MYSQL_ATTR_SSL_CA')
+                ? array_filter([$sslCa => env('MYSQL_ATTR_SSL_CA')])
+                : [],
         ],
 
         'pgsql' => [
@@ -94,7 +110,7 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
         'sqlsrv' => [

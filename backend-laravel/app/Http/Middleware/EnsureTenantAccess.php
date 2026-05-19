@@ -19,7 +19,7 @@ class EnsureTenantAccess
 
         $user = $request->user();
 
-        if ($user && ! $user->isSuperAdmin()) {
+        if ($user && ! $user->isSuperAdmin() && ! $user->isPlatformAdmin()) {
             $tenantId = TenantContext::id();
             $belongs = $user->tenants()->where('tenants.id', $tenantId)->exists();
 

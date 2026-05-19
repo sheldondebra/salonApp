@@ -1,0 +1,61 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
+
+class Appointment extends Model
+{
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'tenant_id',
+        'uuid',
+        'client_user_id',
+        'staff_member_id',
+        'service_id',
+        'location_id',
+        'starts_at',
+        'ends_at',
+        'status',
+        'notes',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'starts_at' => 'datetime',
+            'ends_at' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Appointment $appointment) {
+            $appointment->uuid ??= (string) Str::uuid();
+        });
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'client_user_id');
+    }
+
+    public function staffMember(): BelongsTo
+    {
+        return $this->belongsTo(StaffMember::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class);
+    }
+}

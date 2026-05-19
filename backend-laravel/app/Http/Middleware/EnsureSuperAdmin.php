@@ -12,9 +12,9 @@ class EnsureSuperAdmin
     {
         $user = $request->user();
 
-        if (! $user || ! $user->isSuperAdmin()) {
+        if (! $user || ! $user->isPlatformAdmin()) {
             return response()->json([
-                'message' => 'Super admin access required.',
+                'message' => 'Platform admin access required.',
             ], 403);
         }
 

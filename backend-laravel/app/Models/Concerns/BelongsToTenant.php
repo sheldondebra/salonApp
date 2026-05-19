@@ -14,12 +14,19 @@ trait BelongsToTenant
     {
         static::addGlobalScope('tenant', function (Builder $builder) {
             if ($tenantId = TenantContext::id()) {
-                $builder->where($builder->getModel()->getTable().'.tenant_id', $tenantId);
+                $builder->where(
+                    $builder->getModel()->getTable().'.tenant_id',
+                    $tenantId
+                );
             }
         });
 
         static::creating(function (Model $model) {
-            if (! $model->tenant_id && $tenantId = TenantContext::id()) {
+            if ($model->tenant_id) {
+                return;
+            }
+
+            if ($tenantId = TenantContext::id()) {
                 $model->tenant_id = $tenantId;
             }
         });
@@ -28,5 +35,10 @@ trait BelongsToTenant
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    public function scopeForTenant(Builder $query, int $tenantId): Builder
+    {
+        return $query->withoutGlobalScope('tenant')->where('tenant_id', $tenantId);
     }
 }

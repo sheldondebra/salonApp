@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+// PHP 8.5+ deprecations must not be echoed into JSON API responses (breaks login/fetch).
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+ini_set('display_errors', '0');
+
 // Determine if the application is in maintenance mode...
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;

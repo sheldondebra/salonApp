@@ -1,3 +1,16 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXOpeningElement[name.name='motion']",
+        "message": "Invalid motion element breaks layout. Use a div instead."
+      },
+      {
+        "selector": "JSXClosingElement[name.name='motion']",
+        "message": "Invalid motion closing tag. Use a div instead."
+      }
+    ]
+  }
 }
