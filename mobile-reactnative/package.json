@@ -1,0 +1,9 @@
+{
+  "name": "salonapp-mobile",
+  "version": "0.0.1",
+  "private": true,
+  "description": "SalonApp React Native client — scaffold only; run create-expo-app when implementing.",
+  "scripts": {
+    "postinstall": "echo 'Mobile app not bootstrapped yet. See README.md'"
+  }
+}

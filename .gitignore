@@ -1,0 +1,34 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies (managed per package)
+node_modules/
+
+# Build
+dist/
+build/
+.next/
+out/
+
+# Laravel (backend-laravel has its own .gitignore)
+# Mobile
+mobile-reactnative/.expo/
+mobile-reactnative/android/
+mobile-reactnative/ios/
