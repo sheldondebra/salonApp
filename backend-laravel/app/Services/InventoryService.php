@@ -31,7 +31,7 @@ class InventoryService
      */
     public function dashboardSummary(int $tenantId, ?int $locationId = null): array
     {
-        $products = Product::query()->where('tenant_id', $tenantId)->where('is_active', true)->get(['id', 'cost_cents', 'low_stock_threshold']);
+        $products = Product::query()->where('tenant_id', $tenantId)->whereBool('is_active')->get(['id', 'cost_cents', 'low_stock_threshold']);
 
         $stockQuery = InventoryStock::query()->where('tenant_id', $tenantId);
         if ($locationId) {
@@ -70,7 +70,7 @@ class InventoryService
     {
         $products = Product::query()
             ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
+            ->whereBool('is_active')
             ->with(['category', 'stocks.location'])
             ->orderBy('name')
             ->get();

@@ -9,6 +9,9 @@ use Illuminate\Support\Collection;
 
 class BookingAvailabilityService
 {
+    public function __construct(
+        protected StaffWorkingHoursService $staffWorkingHours,
+    ) {}
     /**
      * @return list<array{time: string, label: string, available: bool}>
      */
@@ -20,7 +23,7 @@ class BookingAvailabilityService
         ?int $excludeAppointmentId = null,
     ): array {
         $day = Carbon::parse($date)->startOfDay();
-        [$dayOpen, $dayClose] = $this->hoursForDay($day);
+        [$dayOpen, $dayClose] = $this->hoursForDay($day, $staffMemberId, $locationId);
 
         if ($dayOpen === null || $dayClose === null) {
             return [];
@@ -124,8 +127,18 @@ class BookingAvailabilityService
     /**
      * @return array{0: ?string, 1: ?string} open and close times (H:i), or nulls when closed
      */
-    protected function hoursForDay(Carbon $day): array
+    /**
+     * @return array{0: ?string, 1: ?string}
+     */
+    protected function hoursForDay(Carbon $day, ?int $staffMemberId = null, ?int $locationId = null): array
     {
+        if ($staffMemberId) {
+            $staffHours = $this->staffWorkingHours->hoursForStaffOnDay($staffMemberId, $day, $locationId);
+            if ($staffHours !== null) {
+                return $staffHours;
+            }
+        }
+
         $defaultStart = config('booking.hours.start', '09:00');
         $defaultEnd = config('booking.hours.end', '18:00');
 

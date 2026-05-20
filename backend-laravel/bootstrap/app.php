@@ -92,6 +92,8 @@ return Application::configure(basePath: dirname(__DIR__))
             $message = 'A database error occurred. Please try again.';
             if (str_contains($e->getMessage(), 'cached plan must not change result type')) {
                 $message = 'Database schema was updated. Restart the API server and try again.';
+            } elseif (str_contains($e->getMessage(), 'does not exist')) {
+                $message = 'Database schema is out of date. Run: php artisan migrate (in backend-laravel), then restart the API server.';
             }
 
             return response()->json(['message' => $message], 500);

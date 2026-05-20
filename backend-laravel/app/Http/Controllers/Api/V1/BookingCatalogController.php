@@ -8,10 +8,15 @@ use App\Http\Resources\ServiceResource;
 use App\Models\Location;
 use App\Models\Service;
 use App\Models\StaffMember;
+use App\Services\StaffServiceAssignmentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class BookingCatalogController extends Controller
 {
+    public function __construct(
+        protected StaffServiceAssignmentService $staffAssignments,
+    ) {}
     public function services(): JsonResponse
     {
         $services = Service::query()
@@ -25,15 +30,39 @@ class BookingCatalogController extends Controller
         ]);
     }
 
-    public function staff(): JsonResponse
+    public function staff(Request $request): JsonResponse
     {
-        $staff = StaffMember::query()
+        $serviceIds = $this->resolveServiceIds($request);
+
+        $query = StaffMember::query()
             ->whereBool('is_active')
             ->whereBool('is_bookable')
-            ->orderBy('display_name')
-            ->get(['id', 'uuid', 'display_name', 'title']);
+            ->orderBy('display_name');
+
+        if ($serviceIds !== []) {
+            $this->staffAssignments->applyBookableForServices($query, $serviceIds);
+        }
+
+        $staff = $query->get(['id', 'uuid', 'display_name', 'title']);
 
         return response()->json(['data' => $staff]);
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function resolveServiceIds(Request $request): array
+    {
+        if ($request->filled('service_id')) {
+            return [(int) $request->integer('service_id')];
+        }
+
+        $ids = $request->input('service_ids', []);
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('intval', array_filter($ids))));
     }
 
     public function locations(): JsonResponse

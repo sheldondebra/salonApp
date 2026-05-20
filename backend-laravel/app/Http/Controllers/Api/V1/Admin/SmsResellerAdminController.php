@@ -10,7 +10,11 @@ use App\Models\SmsProviderSyncLog;
 use App\Models\SmsPurchaseInvoice;
 use App\Models\SmsWalletTransaction;
 use App\Models\TenantSmsWallet;
+use App\Enums\SmsNotificationType;
+use App\Integrations\Sms\SmsGatewayContract;
+use App\Services\MnotifyConfigService;
 use App\Services\SmsProviderSyncService;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +22,79 @@ class SmsResellerAdminController extends Controller
 {
     public function __construct(
         protected SmsProviderSyncService $providerSync,
+        protected MnotifyConfigService $mnotifyConfig,
+        protected SmsGatewayContract $gateway,
+        protected SmsService $sms,
     ) {}
+
+    public function providerSettings(): JsonResponse
+    {
+        return response()->json($this->mnotifyConfig->settingsPayload());
+    }
+
+    public function updateProviderSettings(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'api_key' => ['nullable', 'string', 'min:8', 'max:255'],
+            'sender_id' => ['nullable', 'string', 'max:11'],
+            'base_url' => ['nullable', 'string', 'max:500'],
+            'balance_url' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $this->mnotifyConfig->updateSettings($validated);
+
+        return response()->json([
+            'message' => 'MNotify settings saved.',
+            'settings' => $this->mnotifyConfig->settingsPayload(),
+        ]);
+    }
+
+    public function testSms(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:20'],
+            'message' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        if (! $this->mnotifyConfig->isConfigured()) {
+            return response()->json(['message' => 'Configure MNotify API key before sending a test SMS.'], 422);
+        }
+
+        $message = $validated['message'] ?? 'BeautyOS test SMS from General Office. Your MNotify connection is working.';
+
+        $log = $this->sms->queue(
+            $validated['phone'],
+            $message,
+            SmsNotificationType::General,
+            null,
+        );
+        $log = $this->sms->deliver($log);
+
+        return response()->json([
+            'ok' => $log->status === 'sent',
+            'message' => $log->status === 'sent'
+                ? 'Test SMS sent successfully.'
+                : 'Test SMS failed — check delivery log.',
+            'status' => $log->status,
+            'recipient' => $log->recipient,
+        ], $log->status === 'sent' ? 200 : 422);
+    }
+
+    public function testProvider(): JsonResponse
+    {
+        $result = $this->gateway->fetchBalance();
+
+        if ($result['ok']) {
+            $this->mnotifyConfig->markVerified();
+        }
+
+        return response()->json([
+            'ok' => $result['ok'],
+            'message' => $result['message'],
+            'balance_preview' => $result['balance'] ?? null,
+            'settings' => $this->mnotifyConfig->settingsPayload(),
+        ], $result['ok'] ? 200 : 422);
+    }
 
     public function overview(): JsonResponse
     {

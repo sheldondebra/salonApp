@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             PlatformPlanSeeder::class,
             DemoSeeder::class,
             SmsResellerSeeder::class,
+            SmsPackageSeeder::class,
         ]);
     }
 }

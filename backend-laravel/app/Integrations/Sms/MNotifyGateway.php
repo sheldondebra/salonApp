@@ -2,10 +2,15 @@
 
 namespace App\Integrations\Sms;
 
+use App\Services\MnotifyConfigService;
 use Illuminate\Support\Facades\Http;
 
 class MNotifyGateway implements SmsGatewayContract
 {
+    public function __construct(
+        protected MnotifyConfigService $config,
+    ) {}
+
     public function provider(): string
     {
         return 'mnotify';
@@ -13,19 +18,17 @@ class MNotifyGateway implements SmsGatewayContract
 
     protected function apiKey(): ?string
     {
-        $key = config('integrations.sms.providers.mnotify.api_key');
-
-        return filled($key) ? $key : null;
+        return $this->config->apiKey();
     }
 
     protected function senderId(): string
     {
-        return config('integrations.sms.providers.mnotify.sender_id') ?: 'SalonApp';
+        return $this->config->resolve()['sender_id'] ?: 'SalonApp';
     }
 
     public function isConfigured(): bool
     {
-        return filled($this->apiKey());
+        return $this->config->isConfigured();
     }
 
     public function fetchBalance(): array
@@ -34,12 +37,12 @@ class MNotifyGateway implements SmsGatewayContract
             return [
                 'ok' => false,
                 'balance' => null,
-                'message' => 'MNotify API key not configured. Add MNOTIFY_API_KEY to backend .env.',
+                'message' => 'MNotify API key not configured. Add it in General Office → SMS → MNotify settings.',
                 'code' => 'not_configured',
             ];
         }
 
-        $balanceUrl = rtrim((string) config('integrations.sms.providers.mnotify.balance_url'), '/');
+        $balanceUrl = $this->config->resolve()['balance_url'];
 
         try {
             $response = Http::timeout(20)->get($balanceUrl, [
@@ -158,7 +161,7 @@ class MNotifyGateway implements SmsGatewayContract
             ];
         }
 
-        $baseUrl = rtrim(config('integrations.sms.providers.mnotify.base_url'), '/');
+        $baseUrl = $this->config->resolve()['base_url'];
 
         $response = Http::timeout(30)
             ->asForm()

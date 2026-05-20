@@ -34,6 +34,7 @@ class AppointmentController extends Controller
                 ->where('starts_at', '>=', now())
                 ->whereNotIn('status', ['cancelled', 'no_show']),
             'past' => $query->where('ends_at', '<', now()),
+            'all' => null,
             default => null,
         };
 

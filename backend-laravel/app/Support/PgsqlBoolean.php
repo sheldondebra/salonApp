@@ -4,9 +4,20 @@ namespace App\Support;
 
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 class PgsqlBoolean
 {
+    /** Value safe for query builder mass updates on boolean columns (PostgreSQL rejects 0/1). */
+    public static function updateValue(bool $value): bool|\Illuminate\Contracts\Database\Query\Expression
+    {
+        if (config('database.default') !== 'pgsql') {
+            return $value;
+        }
+
+        return DB::raw($value ? 'TRUE' : 'FALSE');
+    }
+
     public static function registerMacros(): void
     {
         $macro = function (string $column, bool $value = true) {

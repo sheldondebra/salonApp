@@ -102,6 +102,8 @@ class PosService
                 throw new InvalidArgumentException('Add at least one item to the sale.');
             }
 
+            $this->assertStockAvailable($tenantId, (int) $payload['location_id'], $lines);
+
             $subtotal = collect($lines)->sum('line_total_cents');
             $taxCents = max(0, (int) ($payload['tax_cents'] ?? 0));
             $serviceChargeCents = max(0, (int) ($payload['service_charge_cents'] ?? 0));
@@ -253,7 +255,7 @@ class PosService
             if ($type === SaleItemType::Service) {
                 $service = Service::query()
                     ->where('tenant_id', $tenantId)
-                    ->where('is_active', true)
+                    ->whereBool('is_active')
                     ->findOrFail($item['service_id'] ?? 0);
 
                 $unit = (int) $service->price_cents;
@@ -269,7 +271,7 @@ class PosService
             } else {
                 $product = Product::query()
                     ->where('tenant_id', $tenantId)
-                    ->where('is_active', true)
+                    ->whereBool('is_active')
                     ->findOrFail($item['product_id'] ?? 0);
 
                 $unit = (int) $product->retail_cents;
@@ -286,5 +288,32 @@ class PosService
         }
 
         return $lines;
+    }
+
+    /**
+     * @param  list<array{item_type: SaleItemType, product_id: ?int, name: string, quantity: int}>  $lines
+     */
+    protected function assertStockAvailable(int $tenantId, int $locationId, array $lines): void
+    {
+        $tenant = Tenant::query()->findOrFail($tenantId);
+
+        if ($this->inventory->allowNegativeStock($tenant)) {
+            return;
+        }
+
+        foreach ($lines as $line) {
+            if ($line['item_type'] !== SaleItemType::Product || empty($line['product_id'])) {
+                continue;
+            }
+
+            $product = Product::query()->findOrFail($line['product_id']);
+            $available = $this->inventory->productQuantity($product, $locationId);
+
+            if ($available < (int) $line['quantity']) {
+                throw new InvalidArgumentException(
+                    "Insufficient stock for \"{$line['name']}\" at this branch. Available: {$available}."
+                );
+            }
+        }
     }
 }

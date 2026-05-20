@@ -38,5 +38,10 @@ class RolesAndPermissionsSeeder extends Seeder
             $permissions = $matrix[$roleName->value] ?? [];
             $role->syncPermissions($permissions);
         }
+
+        $staffSettingsRoles = [RoleName::TenantOwner->value, RoleName::Manager->value];
+        foreach ($staffSettingsRoles as $roleName) {
+            Role::findByName($roleName, $guard)?->givePermissionTo('staff.settings');
+        }
     }
 }

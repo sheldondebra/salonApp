@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\OnboardingStatus;
 use App\Enums\UserType;
 use App\Models\Appointment;
+use App\Models\Concerns\FixesPgsqlBooleans;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -23,7 +24,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements CanResetPasswordContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use CanResetPassword, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
+    use CanResetPassword, FixesPgsqlBooleans, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     public function sendPasswordResetNotification($token): void
     {

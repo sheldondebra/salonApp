@@ -34,6 +34,7 @@ return [
     'standalone' => [
         'billing.manage',
         'settings.manage',
+        'staff.settings',
     ],
 
     /**

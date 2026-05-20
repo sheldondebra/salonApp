@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Service;
 use App\Models\ServiceCategory;
 use App\Models\StaffMember;
+use App\Models\StaffService;
 use App\Enums\TenantDomainType;
 use App\Models\Tenant;
 use App\Models\TenantDomain;
@@ -176,8 +177,31 @@ class DemoSeeder extends Seeder
 
         $staffMember = StaffMember::withoutGlobalScope('tenant')->updateOrCreate(
             ['tenant_id' => $tenant->id, 'user_id' => $staffUser->id],
-            ['display_name' => 'Maya Chen', 'title' => 'Senior Stylist', 'is_bookable' => true, 'is_active' => true]
+            [
+                'location_id' => $location->id,
+                'display_name' => 'Maya Chen',
+                'title' => 'Senior Stylist',
+                'employment_type' => 'full_time',
+                'employment_status' => StaffMember::STATUS_ACTIVE,
+                'hire_date' => now()->subYears(2)->toDateString(),
+                'color_code' => '#E879A6',
+                'is_bookable' => true,
+                'is_active' => true,
+            ]
         );
+
+        foreach (array_slice($serviceModels, 0, 3) as $svc) {
+            StaffService::withoutGlobalScope('tenant')->updateOrCreate(
+                [
+                    'staff_member_id' => $staffMember->id,
+                    'service_id' => $svc->id,
+                ],
+                [
+                    'tenant_id' => $tenant->id,
+                    'is_active' => true,
+                ]
+            );
+        }
 
         foreach ([0, 1, 2, 3, 4, 5, 6] as $dayOffset) {
             $date = Carbon::today()->subDays(6 - $dayOffset);

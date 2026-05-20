@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AdminAppointmentController;
 use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\AdminReportsController;
 use App\Http\Controllers\Api\V1\Admin\AdminOnboardingController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\V1\Admin\CouponAdminController;
 use App\Http\Controllers\Api\V1\Admin\DomainAdminController;
 use App\Http\Controllers\Api\V1\Admin\PlanAdminController;
 use App\Http\Controllers\Api\V1\Admin\SmsAdminController;
+use App\Http\Controllers\Api\V1\Admin\SmsPackageAdminController;
 use App\Http\Controllers\Api\V1\Admin\SmsResellerAdminController;
 use App\Http\Controllers\Api\V1\TenantSmsController;
 use App\Http\Controllers\Api\V1\Admin\SubscriptionAdminController;
@@ -39,6 +41,7 @@ use App\Http\Controllers\Api\V1\ProductCategoryController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\PosController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\ReportsController;
 use App\Http\Controllers\Api\V1\HealthController;
@@ -49,6 +52,8 @@ use App\Http\Controllers\Api\V1\LocationController;
 use App\Http\Controllers\Api\V1\ServiceCategoryController;
 use App\Http\Controllers\Api\V1\ServiceController;
 use App\Http\Controllers\Api\V1\StaffMemberController;
+use App\Http\Controllers\Api\V1\StaffMemberServiceController;
+use App\Http\Controllers\Api\V1\StaffWorkingHourController;
 use App\Http\Controllers\Api\V1\TenantAbilitiesController;
 use App\Http\Controllers\Api\V1\TenantContextController;
 use App\Http\Controllers\Api\V1\TenantTeamRoleController;
@@ -126,6 +131,9 @@ Route::middleware(['auth:sanctum'])
     ->prefix('admin')
     ->group(function () {
         Route::middleware(EnsurePermission::class.':tenants.view')->group(function () {
+            Route::get('/appointments', [AdminAppointmentController::class, 'index']);
+            Route::get('/appointments/{uuid}', [AdminAppointmentController::class, 'show']);
+            Route::patch('/appointments/{uuid}', [AdminAppointmentController::class, 'update']);
             Route::get('/dashboard', AdminDashboardController::class);
             Route::get('/reports', [AdminReportsController::class, 'index']);
             Route::get('/onboarding', [AdminOnboardingController::class, 'index']);
@@ -163,6 +171,14 @@ Route::middleware(['auth:sanctum'])
             Route::get('/sms', [SmsAdminController::class, 'index']);
             Route::get('/sms-reseller/overview', [SmsResellerAdminController::class, 'overview']);
             Route::get('/sms-reseller/provider', [SmsResellerAdminController::class, 'provider']);
+            Route::get('/sms-reseller/provider/settings', [SmsResellerAdminController::class, 'providerSettings']);
+            Route::patch('/sms-reseller/provider/settings', [SmsResellerAdminController::class, 'updateProviderSettings']);
+            Route::post('/sms-reseller/provider/test', [SmsResellerAdminController::class, 'testProvider']);
+            Route::post('/sms-reseller/provider/test-sms', [SmsResellerAdminController::class, 'testSms']);
+            Route::get('/sms-packages', [SmsPackageAdminController::class, 'index']);
+            Route::post('/sms-packages', [SmsPackageAdminController::class, 'store']);
+            Route::patch('/sms-packages/{smsPackage}', [SmsPackageAdminController::class, 'update']);
+            Route::delete('/sms-packages/{smsPackage}', [SmsPackageAdminController::class, 'destroy']);
             Route::post('/sms-reseller/provider/sync', [SmsResellerAdminController::class, 'syncProvider']);
             Route::get('/sms-reseller/provider/sync-logs', [SmsResellerAdminController::class, 'syncLogs']);
             Route::get('/sms-reseller/wallets', [SmsResellerAdminController::class, 'wallets']);
@@ -267,6 +283,9 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
             Route::get('/sms', [TenantSmsController::class, 'index']);
             Route::get('/sms/wallet', [TenantSmsController::class, 'wallet']);
             Route::get('/sms/wallet/transactions', [TenantSmsController::class, 'walletTransactions']);
+            Route::get('/sms/packages', [TenantSmsController::class, 'packages']);
+            Route::post('/sms/packages/{smsPackage}/purchase', [TenantSmsController::class, 'purchasePackage']);
+            Route::post('/sms/purchases/verify', [TenantSmsController::class, 'verifyPurchase']);
         });
 
         Route::middleware(EnsurePermission::class.':settings.manage|staff.update')->group(function () {
@@ -312,6 +331,7 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
         });
 
         Route::middleware(EnsurePermission::class.':pos.view')->group(function () {
+            Route::get('/pos/summary', [PosController::class, 'summary']);
             Route::get('/sales', [SaleController::class, 'index']);
             Route::get('/sales/{sale}', [SaleController::class, 'show']);
         });
@@ -341,7 +361,12 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
         });
 
         Route::middleware(EnsurePermission::class.':staff.view')->group(function () {
+            Route::get('/staff-members/stats', [StaffMemberController::class, 'stats']);
             Route::get('/staff-members', [StaffMemberController::class, 'index']);
+            Route::get('/staff-members/{staffMember}', [StaffMemberController::class, 'show']);
+            Route::get('/staff-members/{staffMember}/services', [StaffMemberServiceController::class, 'index']);
+            Route::get('/staff-members/{staffMember}/working-hours', [StaffWorkingHourController::class, 'index']);
+            Route::get('/services/{service}/staff-members', [StaffMemberServiceController::class, 'staffForService']);
         });
 
         Route::middleware(EnsurePermission::class.':staff.create')->group(function () {
@@ -350,6 +375,13 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
 
         Route::middleware(EnsurePermission::class.':staff.update')->group(function () {
             Route::patch('/staff-members/{staffMember}', [StaffMemberController::class, 'update']);
+            Route::post('/staff-members/{staffMember}/services', [StaffMemberServiceController::class, 'store']);
+            Route::put('/staff-members/{staffMember}/services/bulk', [StaffMemberServiceController::class, 'bulk']);
+            Route::patch('/staff-members/{staffMember}/services/{staffService}', [StaffMemberServiceController::class, 'update']);
+            Route::delete('/staff-members/{staffMember}/services/{staffService}', [StaffMemberServiceController::class, 'destroy']);
+            Route::put('/staff-members/{staffMember}/working-hours', [StaffWorkingHourController::class, 'update']);
+            Route::post('/staff-members/{staffMember}/working-hours/copy', [StaffWorkingHourController::class, 'copy']);
+            Route::post('/staff-members/working-hours/apply', [StaffWorkingHourController::class, 'apply']);
         });
 
         Route::middleware(EnsurePermission::class.':staff.delete')->group(function () {

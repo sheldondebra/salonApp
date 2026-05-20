@@ -20,6 +20,7 @@ class BookingService
     public function __construct(
         protected BookingAvailabilityService $availability,
         protected LoyaltyService $loyalty,
+        protected StaffServiceAssignmentService $staffAssignments,
     ) {}
 
     /**
@@ -52,6 +53,11 @@ class BookingService
                 'service_ids' => ['Select at least one service.'],
             ]);
         }
+
+        $this->staffAssignments->assertStaffCanPerformServices(
+            $data['staff_member_id'] ?? null,
+            $services->pluck('id')->all(),
+        );
 
         $partySize = min(
             (int) ($data['party_size'] ?? 1),
@@ -187,6 +193,13 @@ class BookingService
         $staffMemberId = array_key_exists('staff_member_id', $data)
             ? $data['staff_member_id']
             : $appointment->staff_member_id;
+
+        if ($appointment->service_id) {
+            $this->staffAssignments->assertStaffCanPerformServices(
+                $staffMemberId,
+                [$appointment->service_id],
+            );
+        }
         $locationId = array_key_exists('location_id', $data)
             ? $data['location_id']
             : $appointment->location_id;
@@ -259,7 +272,6 @@ class BookingService
                 'phone' => $data['client_phone'] ?? null,
                 'password' => Hash::make(Str::random(32)),
                 'user_type' => 'client',
-                'is_active' => true,
             ]
         );
 

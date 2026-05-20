@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Service extends Model
@@ -39,5 +40,15 @@ class Service extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ServiceCategory::class, 'service_category_id');
+    }
+
+    public function staffServices(): HasMany
+    {
+        return $this->hasMany(StaffService::class);
+    }
+
+    public function activeStaffServices(): HasMany
+    {
+        return $this->staffServices()->whereBool('is_active', true);
     }
 }

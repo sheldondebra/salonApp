@@ -11,6 +11,7 @@ class SmsProviderSyncService
 {
     public function __construct(
         protected SmsGatewayContract $gateway,
+        protected MnotifyConfigService $mnotifyConfig,
     ) {}
 
     /**
@@ -41,6 +42,7 @@ class SmsProviderSyncService
             ]);
 
             $this->logSync($provider->provider, 'success', $balanceBefore, $result['balance'], $result['message']);
+            $this->mnotifyConfig->markVerified();
 
             return [
                 'provider' => $this->providerPayload($provider->fresh()),
@@ -94,23 +96,16 @@ class SmsProviderSyncService
             ['balance_credits' => 0, 'status' => 'pending_sync']
         );
 
-        $meta = $provider->meta ?? [];
+        $settings = $this->mnotifyConfig->settingsPayload();
         $recentFailed = SmsProviderSyncLog::query()
             ->where('provider', $provider->provider)
             ->where('status', 'failed')
             ->where('created_at', '>=', now()->subDay())
             ->count();
 
-        return [
-            'provider' => $provider->provider,
-            'balance_credits' => (int) $provider->balance_credits,
-            'status' => $provider->status,
-            'last_synced_at' => $provider->last_synced_at?->toIso8601String(),
-            'api_configured' => $this->gateway->isConfigured(),
-            'sender_id' => config('integrations.sms.providers.mnotify.sender_id') ?: 'SalonApp',
-            'last_error' => $meta['last_error'] ?? null,
+        return array_merge($settings, [
             'recent_failed_syncs' => $recentFailed,
-        ];
+        ]);
     }
 
     /**

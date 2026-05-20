@@ -34,4 +34,10 @@ class StaffMemberPolicy
     {
         return $this->can($user, 'staff', 'delete');
     }
+
+    public function manageSettings(User $user): bool
+    {
+        return \App\Support\PermissionChecker::allows($user, 'staff.settings')
+            || $this->can($user, 'settings', 'manage');
+    }
 }

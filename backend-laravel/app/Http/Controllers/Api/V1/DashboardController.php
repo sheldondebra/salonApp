@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AppointmentResource;
 use App\Enums\UserType;
 use App\Models\Appointment;
+use App\Models\Sale;
 use App\Models\User;
+use App\Services\InventoryService;
 use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected InventoryService $inventory,
+    ) {}
+
     public function stats(): JsonResponse
     {
         $this->authorize('viewAnalytics');
@@ -66,6 +72,15 @@ class DashboardController extends Controller
             })
             ->count();
 
+        $posMonth = Sale::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', 'completed')
+            ->where('completed_at', '>=', $startOfMonth);
+
+        $posToday = (clone $posMonth)->whereDate('completed_at', $today);
+
+        $inventorySummary = $this->inventory->dashboardSummary($tenantId);
+
         return response()->json([
             'stats' => [
                 'appointments_today' => $todayAppointments,
@@ -75,6 +90,11 @@ class DashboardController extends Controller
                 'cancelled_month' => $cancelledMonth,
                 'self_bookings_month' => $selfBookingsMonth,
                 'new_customers_month' => $newCustomersMonth,
+                'pos_sales_today_count' => (clone $posToday)->count(),
+                'pos_sales_today_cents' => (int) (clone $posToday)->sum('total_cents'),
+                'pos_sales_month_cents' => (int) (clone $posMonth)->sum('total_cents'),
+                'active_products' => $inventorySummary['active_products'],
+                'low_stock_count' => $inventorySummary['low_stock_count'],
             ],
         ]);
     }

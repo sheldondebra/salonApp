@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\RoleName;
 use App\Http\Controllers\Controller;
 use App\Support\PermissionList;
+use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Spatie\Permission\PermissionRegistrar;
 
 class TenantAbilitiesController extends Controller
 {
@@ -22,6 +24,11 @@ class TenantAbilitiesController extends Controller
                 'roles' => [RoleName::SuperAdmin->value],
                 'permissions' => PermissionList::all(),
             ]);
+        }
+
+        $tenantId = TenantContext::id();
+        if ($tenantId) {
+            app(PermissionRegistrar::class)->setPermissionsTeamId($tenantId);
         }
 
         return response()->json([
