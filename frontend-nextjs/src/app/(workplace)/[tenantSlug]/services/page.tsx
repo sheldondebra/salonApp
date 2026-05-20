@@ -1,24 +1,21 @@
 "use client";
 
 import { RequirePermission } from "@/components/auth/require-permission";
-import { WorkplaceShell } from "@/components/layout/workplace-shell";
-import { EmptyState } from "@/components/shared/empty-state";
-import { Scissors } from "lucide-react";
-import { useTenant } from "@/hooks/use-tenant";
+import { WorkplacePageShell } from "@/components/layout/workplace-page-shell";
+import { ServicesManageView } from "@/features/services/services-manage-view";
 import { Permissions } from "@/lib/auth/permissions";
 
 export default function ServicesPage({ params }: { params: { tenantSlug: string } }) {
-  const { tenant } = useTenant(params.tenantSlug);
-
   return (
-    <WorkplaceShell tenantSlug={params.tenantSlug} tenantName={tenant?.name ?? params.tenantSlug}>
+    <WorkplacePageShell
+      tenantSlug={params.tenantSlug}
+      title="Services"
+      description="Menu, categories, and portfolio gallery"
+      skeletonVariant="table"
+    >
       <RequirePermission tenantSlug={params.tenantSlug} permission={Permissions.services.view}>
-        <EmptyState
-          icon={Scissors}
-          title="Service menu"
-          description="Manage categories, pricing, and durations from the API — UI editor coming soon."
-        />
+        <ServicesManageView tenantSlug={params.tenantSlug} />
       </RequirePermission>
-    </WorkplaceShell>
+    </WorkplacePageShell>
   );
 }

@@ -5,14 +5,14 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Integrations\Payments\FlutterwaveGateway;
 use App\Integrations\Payments\PaystackGateway;
-use App\Services\BillingService;
+use App\Services\PaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PaymentWebhookController extends Controller
 {
     public function __construct(
-        protected BillingService $billing,
+        protected PaymentService $payments,
     ) {}
 
     public function paystack(Request $request, PaystackGateway $gateway): JsonResponse
@@ -28,7 +28,7 @@ class PaymentWebhookController extends Controller
         $reference = $gateway->handleWebhook($data);
 
         if ($reference) {
-            $this->billing->markPaidByReference($reference);
+            $this->payments->reconcileByReference($reference);
         }
 
         return response()->json(['received' => true]);
@@ -47,7 +47,7 @@ class PaymentWebhookController extends Controller
         $reference = $gateway->handleWebhook($data);
 
         if ($reference) {
-            $this->billing->markPaidByReference($reference);
+            $this->payments->reconcileByReference($reference);
         }
 
         return response()->json(['received' => true]);

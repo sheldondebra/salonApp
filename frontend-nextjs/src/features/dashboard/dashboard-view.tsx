@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -10,96 +11,137 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Calendar, Clock, DollarSign, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
-import { StatCard } from "@/components/shared/stat-card";
+import {
+  Calendar,
+  Clock,
+  DollarSign,
+  TrendingUp,
+  UserPlus,
+} from "lucide-react";
+import { MetricCard } from "@/components/shared/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ErrorState } from "@/components/shared/error-state";
+import { ApiError } from "@/lib/api/client";
+import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { formatMoney } from "@/lib/format/money";
+import { useAbilities } from "@/hooks/use-abilities";
+import { Permissions } from "@/lib/auth/permissions";
 import type { Appointment, DashboardStats, RevenueChartPoint } from "@/lib/api/types";
-
-function formatCurrency(cents: number, currency = "USD") {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
-}
+import { DashboardQuickActions } from "./dashboard-quick-actions";
+import { DashboardModuleNav } from "./dashboard-module-nav";
 
 type DashboardViewProps = {
   tenantSlug: string;
   currency?: string;
 };
 
+function statusVariant(status: string): "default" | "secondary" | "success" | "warning" | "outline" {
+  if (status === "completed" || status === "confirmed") return "success";
+  if (status === "pending") return "warning";
+  if (status === "cancelled" || status === "no_show") return "outline";
+  return "secondary";
+}
+
 export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewProps) {
+  const { can } = useAbilities(tenantSlug);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [chart, setChart] = useState<RevenueChartPoint[]>([]);
   const [upcoming, setUpcoming] = useState<Appointment[]>([]);
+  const [recent, setRecent] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
     const client = createApiClient(getApiClientOptions());
-    Promise.all([
+    return Promise.all([
       client.get<{ stats: DashboardStats }>(`/${tenantSlug}/dashboard/stats`),
       client.get<{ data: RevenueChartPoint[] }>(`/${tenantSlug}/dashboard/revenue-chart`),
       client.get<{ data: Appointment[] }>(`/${tenantSlug}/dashboard/upcoming`),
+      client.get<{ data: Appointment[] }>(`/${tenantSlug}/dashboard/recent`),
     ])
-      .then(([statsRes, chartRes, upcomingRes]) => {
+      .then(([statsRes, chartRes, upcomingRes, recentRes]) => {
         setStats(statsRes.stats);
-        setChart(chartRes.data);
-        setUpcoming(upcomingRes.data);
+        setChart(chartRes.data ?? []);
+        setUpcoming(upcomingRes.data ?? []);
+        setRecent(recentRes.data ?? []);
       })
-      .catch(() => {
-        /* demo may run without API — show empty */
+      .catch((err) => {
+        setError(err instanceof ApiError ? err.message : "Could not load dashboard");
       })
       .finally(() => setLoading(false));
   }, [tenantSlug]);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-2xl" />
-          ))}
-        </div>
-        <Skeleton className="h-80 rounded-2xl" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
+
+  if (error) {
+    return <ErrorState description={error} onRetry={load} className="mx-auto max-w-lg" />;
+  }
+
+  const base = `/${tenantSlug}`;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground">Overview of bookings and revenue</p>
+      <div className="space-y-3">
+        <p className="text-sm font-medium text-muted-foreground">Quick actions</p>
+        <DashboardQuickActions tenantSlug={tenantSlug} can={can} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Today's appointments"
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          title="Today's bookings"
           value={String(stats?.appointments_today ?? 0)}
           icon={Calendar}
         />
-        <StatCard
+        <MetricCard
           title="Revenue this month"
-          value={formatCurrency(stats?.revenue_month_cents ?? 0, currency)}
+          value={formatMoney(stats?.revenue_month_cents ?? 0, currency)}
           icon={DollarSign}
-          trend="+12% vs last month"
         />
-        <StatCard
-          title="Pending bookings"
+        <MetricCard
+          title="New customers"
+          value={String(stats?.new_customers_month ?? 0)}
+          icon={UserPlus}
+          hint="Joined this month"
+        />
+        <MetricCard
+          title="Pending appointments"
           value={String(stats?.pending_bookings ?? 0)}
           icon={Clock}
         />
-        <StatCard
-          title="Completed this month"
-          value={String(stats?.completed_month ?? 0)}
-          icon={TrendingUp}
-        />
       </div>
 
-      <Card className="shadow-soft">
+      <Card className="rounded-2xl border-border/60 shadow-soft">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-medium text-muted-foreground">Jump to</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DashboardModuleNav tenantSlug={tenantSlug} can={can} />
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-2xl border-border/60 shadow-soft">
         <CardHeader>
           <CardTitle>Revenue (7 days)</CardTitle>
         </CardHeader>
@@ -108,63 +150,129 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
             <EmptyState
               icon={TrendingUp}
               title="No revenue data yet"
-              description="Bookings will appear here once your API is connected and seeded."
+              description="Completed and confirmed bookings will appear here."
             />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chart}>
                 <defs>
-                  <linearGradient id="revenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#E879A6" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#E879A6" stopOpacity={0} />
+                  <linearGradient id="tenantRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tickFormatter={(v) => `$${v / 100}`} tick={{ fontSize: 12 }} />
+                <YAxis
+                  tickFormatter={(v) => formatMoney(Number(v), currency)}
+                  tick={{ fontSize: 12 }}
+                  width={72}
+                />
                 <Tooltip
-                  formatter={(value) => [
-                    formatCurrency(Number(value ?? 0), currency),
-                    "Revenue",
-                  ]}
+                  formatter={(value) => [formatMoney(Number(value ?? 0), currency), "Revenue"]}
                   labelFormatter={(_, payload) => {
                     const date = payload?.[0]?.payload?.date as string | undefined;
                     return date ? format(new Date(date), "MMM d, yyyy") : "";
                   }}
                 />
-                <Area type="monotone" dataKey="revenue_cents" stroke="#E879A6" fill="url(#revenue)" />
+                <Area
+                  type="monotone"
+                  dataKey="revenue_cents"
+                  stroke="hsl(var(--accent))"
+                  fill="url(#tenantRevenue)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      <Card className="shadow-soft">
-        <CardHeader>
-          <CardTitle>Upcoming appointments</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {upcoming.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No upcoming appointments</p>
-          ) : (
-            upcoming.map((apt) => (
-              <div
-                key={apt.uuid}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{apt.service?.name ?? "Service"}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {apt.starts_at ? format(new Date(apt.starts_at), "EEE, MMM d · h:mm a") : "—"}
-                    {apt.staff_member ? ` · ${apt.staff_member.display_name}` : ""}
-                  </p>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="rounded-2xl border-border/60 shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Recent bookings</CardTitle>
+            {can(Permissions.bookings.view) ? (
+              <Button variant="ghost" size="sm" className="rounded-xl" asChild>
+                <Link href={`${base}/appointments`}>View all</Link>
+              </Button>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {recent.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No past bookings yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>When</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recent.map((apt) => (
+                    <TableRow key={apt.uuid}>
+                      <TableCell className="font-medium">{apt.service?.name ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {apt.client?.name ?? "Walk-in"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {apt.starts_at
+                          ? format(new Date(apt.starts_at), "MMM d · h:mm a")
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant(apt.status)} className="capitalize">
+                          {apt.status.replace(/_/g, " ")}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-border/60 shadow-soft">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Upcoming appointments</CardTitle>
+            {can(Permissions.bookings.view) ? (
+              <Button variant="ghost" size="sm" className="rounded-xl" asChild>
+                <Link href={`${base}/appointments`}>View all</Link>
+              </Button>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {upcoming.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No upcoming appointments.
+              </p>
+            ) : (
+              upcoming.map((apt) => (
+                <div
+                  key={apt.uuid}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium">{apt.service?.name ?? "Service"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {apt.starts_at
+                        ? format(new Date(apt.starts_at), "EEE, MMM d · h:mm a")
+                        : "—"}
+                      {apt.staff_member ? ` · ${apt.staff_member.display_name}` : ""}
+                    </p>
+                  </div>
+                  <Badge variant={statusVariant(apt.status)} className="capitalize">
+                    {apt.status.replace(/_/g, " ")}
+                  </Badge>
                 </div>
-                <Badge variant={apt.status === "pending" ? "warning" : "success"}>{apt.status}</Badge>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

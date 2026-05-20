@@ -3,13 +3,14 @@
 namespace App\Services;
 
 use App\Enums\OnboardingStatus;
-use App\Integrations\Payments\FlutterwaveGateway;
-use App\Integrations\Payments\PaystackGateway;
-use App\Integrations\Payments\PaymentGatewayContract;
+use App\Integrations\Payments\PaymentGatewayManager;
 use App\Mail\BillingInvoiceMail;
+use App\Mail\LoginDetailsMail;
 use App\Mail\PaymentReceiptMail;
+use App\Mail\WelcomeOnboardingMail;
 use App\Models\BillingInvoice;
 use App\Models\Coupon;
+use App\Models\PlatformPlan;
 use App\Models\PlatformSubscription;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +20,21 @@ use InvalidArgumentException;
 
 class BillingService
 {
+    public function __construct(
+        protected PaymentGatewayManager $gateways,
+    ) {}
+
     public function plan(string $planId): array
     {
+        $dbPlan = PlatformPlan::query()
+            ->where('slug', $planId)
+            ->whereBool('is_active')
+            ->first();
+
+        if ($dbPlan) {
+            return $dbPlan->toBillingArray();
+        }
+
         $plan = config("billing.plans.{$planId}");
 
         if (! $plan) {
@@ -30,23 +44,21 @@ class BillingService
         return array_merge(['id' => $planId], $plan);
     }
 
-    public function validateCoupon(?string $code, int $amountCents): array
+    public function validateCoupon(?string $code, int $amountCents, ?string $planId = null): array
     {
-        if (! $code) {
-            return ['valid' => true, 'discount_cents' => 0, 'coupon' => null];
-        }
+        $result = app(CouponService::class)->validate($code, [
+            'scope' => \App\Enums\CouponScope::Subscription,
+            'amount_cents' => $amountCents,
+            'plan_id' => $planId,
+        ]);
 
-        $coupon = Coupon::query()->where('code', strtoupper(trim($code)))->first();
-
-        if (! $coupon || ! $coupon->isValid()) {
-            return ['valid' => false, 'discount_cents' => 0, 'coupon' => null, 'message' => 'Invalid or expired coupon.'];
-        }
-
-        $discount = $coupon->type === 'percent'
-            ? (int) round($amountCents * ($coupon->value / 100))
-            : min($amountCents, $coupon->value);
-
-        return ['valid' => true, 'discount_cents' => $discount, 'coupon' => $coupon, 'message' => null];
+        return [
+            'valid' => $result['valid'],
+            'discount_cents' => $result['discount_cents'],
+            'coupon' => $result['coupon'],
+            'message' => $result['message'],
+            'final_amount_cents' => $result['final_amount_cents'],
+        ];
     }
 
     public function checkout(User $user, string $planId, ?string $couponCode, string $provider): array
@@ -125,6 +137,11 @@ class BillingService
 
         if (($verified['status'] ?? '') !== 'success') {
             $subscription->update(['status' => 'failed']);
+            app(PaymentService::class)->logSubscriptionFailure(
+                $subscription,
+                'verification_failed',
+                $verified['raw'] ?? []
+            );
 
             return null;
         }
@@ -147,7 +164,9 @@ class BillingService
             ]);
 
             if ($subscription->coupon_id) {
-                Coupon::query()->whereKey($subscription->coupon_id)->increment('redemptions_count');
+                app(CouponService::class)->recordRedemption(
+                    Coupon::query()->find($subscription->coupon_id)
+                );
             }
 
             $user = $subscription->user;
@@ -193,16 +212,19 @@ class BillingService
         try {
             Mail::to($user->email)->send(new BillingInvoiceMail($user, $subscription, $invoice));
             Mail::to($user->email)->send(new PaymentReceiptMail($user, $subscription, $invoice));
+            Mail::to($user->email)->send(new LoginDetailsMail($user));
+
+            $tenant = $user->ownedTenant();
+            if ($tenant) {
+                Mail::to($user->email)->send(new WelcomeOnboardingMail($user, $tenant));
+            }
         } catch (\Throwable) {
             // Log in production; do not block payment completion
         }
     }
 
-    public function gateway(string $provider): PaymentGatewayContract
+    public function gateway(string $provider): \App\Integrations\Payments\PaymentGatewayContract
     {
-        return match ($provider) {
-            'flutterwave' => app(FlutterwaveGateway::class),
-            default => app(PaystackGateway::class),
-        };
+        return $this->gateways->resolve($provider);
     }
 }

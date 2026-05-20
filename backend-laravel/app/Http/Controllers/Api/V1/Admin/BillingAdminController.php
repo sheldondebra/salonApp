@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Enums\OnboardingStatus;
+use App\Models\PaymentFailureLog;
 use App\Models\PlatformSubscription;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,17 @@ class BillingAdminController extends Controller
             ->paginate(20);
 
         return response()->json($subscriptions);
+    }
+
+    public function failures(Request $request): JsonResponse
+    {
+        $failures = PaymentFailureLog::query()
+            ->withoutGlobalScope('tenant')
+            ->with(['user:id,name,email', 'tenant:id,slug,name'])
+            ->orderByDesc('created_at')
+            ->paginate(20);
+
+        return response()->json($failures);
     }
 
     public function unpaidSignups(Request $request): JsonResponse

@@ -17,6 +17,7 @@ class ServiceResource extends JsonResource
             'duration_minutes' => $this->duration_minutes,
             'price_cents' => $this->price_cents,
             'price_formatted' => number_format($this->price_cents / 100, 2),
+            'is_active' => $this->is_active,
             'category' => $this->whenLoaded('category', fn () => [
                 'id' => $this->category->id,
                 'name' => $this->category->name,

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AppointmentResource;
+use App\Enums\UserType;
 use App\Models\Appointment;
+use App\Models\User;
 use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -43,12 +45,21 @@ class DashboardController extends Controller
             ->where('starts_at', '>=', $startOfMonth)
             ->count();
 
+        $newCustomersMonth = User::query()
+            ->where('user_type', UserType::Client)
+            ->whereHas('tenants', function ($q) use ($tenantId, $startOfMonth) {
+                $q->where('tenants.id', $tenantId)
+                    ->where('tenant_user.joined_at', '>=', $startOfMonth);
+            })
+            ->count();
+
         return response()->json([
             'stats' => [
                 'appointments_today' => $todayAppointments,
                 'revenue_month_cents' => (int) $monthRevenue,
                 'pending_bookings' => $pending,
                 'completed_month' => $completedMonth,
+                'new_customers_month' => $newCustomersMonth,
             ],
         ]);
     }
@@ -97,6 +108,22 @@ class DashboardController extends Controller
             ->with(['service', 'staffMember', 'client'])
             ->where('starts_at', '>=', now())
             ->orderBy('starts_at')
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'data' => AppointmentResource::collection($appointments),
+        ]);
+    }
+
+    public function recentAppointments(): JsonResponse
+    {
+        $this->authorize('viewAnalytics');
+
+        $appointments = Appointment::query()
+            ->with(['service', 'staffMember', 'client'])
+            ->where('starts_at', '<', now())
+            ->orderByDesc('starts_at')
             ->limit(10)
             ->get();
 

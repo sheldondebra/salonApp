@@ -33,7 +33,9 @@ class Tenant extends Model
         'business_phone',
         'address_line1',
         'city',
+        'state',
         'country',
+        'country_code',
         'website_url',
     ];
 
@@ -62,7 +64,7 @@ class Tenant extends Model
 
     public function primaryDomain(): HasMany
     {
-        return $this->domains()->where('is_primary', true);
+        return $this->domains()->whereBool('is_primary');
     }
 
     public function users(): BelongsToMany
@@ -97,6 +99,11 @@ class Tenant extends Model
         return $this->hasMany(Appointment::class);
     }
 
+    public function portfolioGalleryItems(): HasMany
+    {
+        return $this->hasMany(PortfolioGalleryItem::class);
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', TenantStatus::Active);
@@ -109,16 +116,38 @@ class Tenant extends Model
 
     public function branding(): array
     {
+        $social = $this->setting('social', []);
+        if (! is_array($social)) {
+            $social = [];
+        }
+
+        $hours = $this->setting('opening_hours', []);
+        if (! is_array($hours)) {
+            $hours = [];
+        }
+
         return [
             'logo_url' => $this->logo_url,
             'banner_url' => $this->banner_url,
             'primary_color' => $this->primary_color ?? config('tenant.default_primary_color'),
             'accent_color' => $this->accent_color ?? config('tenant.default_accent_color'),
             'tagline' => $this->tagline,
+            'business_description' => $this->setting('business_description'),
             'business_phone' => $this->business_phone,
             'business_email' => $this->business_email,
+            'whatsapp' => $this->setting('whatsapp'),
             'address' => $this->formattedAddress(),
+            'address_line1' => $this->address_line1,
+            'city' => $this->city,
+            'country' => $this->country,
             'website_url' => $this->website_url,
+            'social' => [
+                'instagram' => $social['instagram'] ?? null,
+                'facebook' => $social['facebook'] ?? null,
+                'tiktok' => $social['tiktok'] ?? null,
+                'twitter' => $social['twitter'] ?? null,
+            ],
+            'opening_hours' => array_values($hours),
         ];
     }
 
@@ -127,5 +156,105 @@ class Tenant extends Model
         $parts = array_filter([$this->address_line1, $this->city, $this->country]);
 
         return $parts ? implode(', ', $parts) : null;
+    }
+
+    public function setting(string $key, mixed $default = null): mixed
+    {
+        return data_get($this->settings ?? [], $key, $default);
+    }
+
+    public function businessTypeKey(): ?string
+    {
+        $key = $this->setting('business_type');
+
+        return is_string($key) && $key !== '' ? $key : null;
+    }
+
+    public function businessTypeLabel(): ?string
+    {
+        $key = $this->businessTypeKey();
+
+        return $key ? config("business_types.types.{$key}.label") : null;
+    }
+
+    /** Tenant opted in to multiple branches (SaaS setting per business). */
+    public function multipleLocationsEnabled(): bool
+    {
+        return (bool) $this->setting(
+            'multiple_locations',
+            config('tenant.default_settings.multiple_locations', false)
+        );
+    }
+
+    public function paymentsEnabled(): bool
+    {
+        return (bool) $this->setting(
+            'payments.enabled',
+            config('tenant.default_settings.payments.enabled', false)
+        );
+    }
+
+    public function depositPercent(): int
+    {
+        return (int) $this->setting(
+            'payments.deposit_percent',
+            config('tenant.default_settings.payments.deposit_percent', 30)
+        );
+    }
+
+    public function requireFullPayment(): bool
+    {
+        return (bool) $this->setting(
+            'payments.require_full_payment',
+            config('tenant.default_settings.payments.require_full_payment', false)
+        );
+    }
+
+    /** @return array{enabled: bool, deposit_percent: int, require_full_payment: bool} */
+    public function paymentSettings(): array
+    {
+        return [
+            'enabled' => $this->paymentsEnabled(),
+            'deposit_percent' => $this->depositPercent(),
+            'require_full_payment' => $this->requireFullPayment(),
+        ];
+    }
+
+    /** @return array<string, bool> */
+    public function notificationSettings(): array
+    {
+        $stored = $this->setting('notifications', []);
+
+        if (! is_array($stored)) {
+            $stored = [];
+        }
+
+        return array_merge(config('notifications.defaults'), $stored);
+    }
+
+    public function activeLocationsCount(): int
+    {
+        return $this->locations()->whereBool('is_active')->count();
+    }
+
+    /**
+     * How public booking treats locations for this tenant.
+     * none = single-site salon (address on tenant row)
+     * single = one branch record, auto-selected
+     * multi = client picks a branch
+     */
+    public function bookingLocationMode(): string
+    {
+        if (! $this->multipleLocationsEnabled()) {
+            return 'none';
+        }
+
+        $count = $this->activeLocationsCount();
+
+        return match (true) {
+            $count > 1 => 'multi',
+            $count === 1 => 'single',
+            default => 'none',
+        };
     }
 }

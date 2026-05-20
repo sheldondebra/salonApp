@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { createApiClient } from "@/lib/api/client";
 import { tenantApiBase } from "@/lib/api/tenant-path";
-import type { Tenant } from "@/lib/api/types";
+import type { Tenant, TenantBookingConfig } from "@/lib/api/types";
 import { getApiClientOptions } from "@/lib/auth/session";
 
 type TenantContextResponse = {
   tenant: Tenant;
   resolution?: string;
-  booking?: { slug: string; accepts_public_bookings: boolean };
+  booking?: TenantBookingConfig;
 };
 
 /**
@@ -20,6 +20,7 @@ export function useTenant(slug?: string | null) {
   const [resolution, setResolution] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [booking, setBooking] = useState<TenantBookingConfig | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +33,7 @@ export function useTenant(slug?: string | null) {
         if (!cancelled) {
           setTenant(res.tenant);
           setResolution(res.resolution ?? null);
+          setBooking(res.booking ?? null);
         }
       })
       .catch((e) => {
@@ -48,5 +50,5 @@ export function useTenant(slug?: string | null) {
     };
   }, [slug]);
 
-  return { tenant, resolution, loading, error };
+  return { tenant, booking, resolution, loading, error };
 }

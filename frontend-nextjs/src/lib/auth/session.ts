@@ -15,7 +15,11 @@ export function clearAuthToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export function getApiClientOptions(tenantId?: number) {
+export function getApiClientOptions(tenantId?: number, tenantSlug?: string) {
   const token = getAuthToken();
-  return { token: token ?? undefined, tenantId };
+  return {
+    token: token ?? undefined,
+    tenantId,
+    tenantSlug: tenantSlug || undefined,
+  };
 }

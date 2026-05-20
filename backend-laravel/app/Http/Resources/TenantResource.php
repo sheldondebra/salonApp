@@ -18,6 +18,8 @@ class TenantResource extends JsonResource
             'plan' => $this->plan,
             'timezone' => $this->timezone,
             'currency' => $this->currency,
+            'business_type' => $this->businessTypeKey(),
+            'business_type_label' => $this->businessTypeLabel(),
             'branding' => $this->branding(),
             'domains' => $this->whenLoaded('domains', fn () => $this->domains->map(fn ($d) => [
                 'domain' => $d->domain,

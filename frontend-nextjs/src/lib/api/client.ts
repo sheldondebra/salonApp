@@ -1,8 +1,11 @@
 import { env } from "@/config/env";
+import { formatApiErrorMessage } from "@/lib/api/format-error";
 
 export type ApiClientOptions = {
   token?: string;
   tenantId?: string | number;
+  /** Resolves tenant on /booking/* when Host is localhost (no custom domain). */
+  tenantSlug?: string;
 };
 
 export class ApiError extends Error {
@@ -31,6 +34,10 @@ export class ApiClient {
 
     if (this.options.tenantId) {
       headers["X-Tenant-Id"] = String(this.options.tenantId);
+    }
+
+    if (this.options.tenantSlug) {
+      headers["X-Tenant-Slug"] = this.options.tenantSlug;
     }
 
     return headers;
@@ -100,21 +107,39 @@ export class ApiClient {
   delete<T>(path: string) {
     return this.request<T>(path, { method: "DELETE" });
   }
-}
 
-function formatApiErrorMessage(payload: unknown, status: number): string {
-  if (typeof payload === "object" && payload) {
-    const errors = (payload as { errors?: Record<string, string[]> }).errors;
-    if (errors) {
-      const first = Object.values(errors).flat()[0];
-      if (first) return first;
+  async upload<T>(path: string, file: File, purpose = "general"): Promise<T> {
+    const url = env.apiUrl ? `${env.apiUrl}/api/v1${path}` : `/api/v1${path}`;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("purpose", purpose);
+
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (this.options.token) {
+      headers.Authorization = `Bearer ${this.options.token}`;
     }
-    if ("message" in payload && typeof (payload as { message: unknown }).message === "string") {
-      const msg = (payload as { message: string }).message;
-      if (msg !== "The given data was invalid.") return msg;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: form,
+      credentials: "omit",
+    });
+
+    const text = await response.text();
+    let payload: unknown = {};
+    try {
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      if (!response.ok) {
+        throw new ApiError("Invalid response from API.", response.status);
+      }
     }
+    if (!response.ok) {
+      throw new ApiError(formatApiErrorMessage(payload, response.status), response.status, payload);
+    }
+    return payload as T;
   }
-  return `API error: ${status}`;
 }
 
 export function createApiClient(options?: ApiClientOptions) {

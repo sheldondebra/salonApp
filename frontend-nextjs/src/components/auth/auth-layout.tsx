@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Scissors } from "lucide-react";
 import { AuthBackLink } from "@/components/auth/auth-back-link";
 
 type AuthLayoutProps = {
@@ -16,7 +16,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-primary/40 via-accent/30 to-background lg:flex lg:flex-col lg:justify-between lg:p-12">
         <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 text-accent shadow-soft">
-            <Sparkles className="h-5 w-5" />
+            <Scissors className="h-5 w-5" />
           </span>
           SalonApp
         </Link>
@@ -38,7 +38,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <Link href="/" className="mb-6 flex items-center gap-2 font-semibold">
-              <Sparkles className="h-5 w-5 text-accent" />
+              <Scissors className="h-5 w-5 text-accent" />
               SalonApp
             </Link>
           </div>

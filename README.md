@@ -73,7 +73,7 @@ App: `http://localhost:3000`
 
 The frontend proxies `/api/v1/*` → `http://127.0.0.1:8000` so login works without CORS issues. **Both servers must be running.**
 
-**CORS error in the browser?** Do not set `NEXT_PUBLIC_API_URL=http://localhost:8000`. Restart the frontend after changes: `cd frontend-nextjs && rm -rf .next && npm run dev`. Login requests must go to `http://localhost:3000/api/v1/...`, not port 8000.
+**CORS error in the browser?** Do not set `NEXT_PUBLIC_API_URL=http://localhost:8000`. Use `npm run dev` (not `dev:clean` unless broken). Login must hit `http://localhost:3000/api/v1/...`, not port 8000.
 
 ### Login not working?
 
@@ -95,9 +95,9 @@ If login succeeds but the salon dashboard shows “Access restricted”, run `ph
 
 ### If the UI looks broken or unstyled
 
-1. **Use the correct port** — `npm run dev` must show `http://localhost:3000`. If port 3000 is busy, stop the old process: `lsof -ti :3000 | xargs kill`, then run `npm run dev` again.
-2. **Refresh breaks UI?** — `npm run dev` now clears `.next` on each start. Do not run a second dev server on another port. Hard-refresh the browser once after the server restarts.
-3. **Ensure env exists** — first `npm run dev` copies `.env.example` → `.env.local`; API URL should be `http://localhost:8000` with Laravel running.
+1. **One dev server only** — `npm run dev` on port 3000. If busy: `lsof -ti :3000 | xargs kill -9`, then `npm run dev` again.
+2. **`/_next/static/chunks/...` 404** — stale browser cache. Stop all dev servers, run `npm run dev:clean` once, then hard-refresh (**Cmd+Shift+R**). Use normal `npm run dev` for daily work (do not wipe `.next` every time).
+3. **Env** — do not set `NEXT_PUBLIC_API_URL` to port 8000. Laravel: `php artisan serve`.
 4. **Invalid JSX** — never use `<motion>` tags (use `<div>`). Run `npm run verify:ui` before committing.
 
 ### Demo accounts (after `db:seed`)
@@ -110,6 +110,10 @@ If login succeeds but the salon dashboard shows “Access restricted”, run `ph
 | Demo tenant slug | `luxe-bloom` | — |
 
 Try: [Tenant dashboard](http://localhost:3000/luxe-bloom/dashboard) · [Client booking](http://localhost:3000/luxe-bloom/book) · [Client account](http://localhost:3000/luxe-bloom/account/profile) · [Pricing](http://localhost:3000/pricing) · [Admin](http://localhost:3000/admin)
+
+### Appointment booking (public)
+
+Per-**tenant** booking at `/{tenant}/book` (data isolated by `tenant_id`). Branch step appears only if that tenant enables `settings.multiple_locations` and has 2+ locations — most single-site salons skip it. API: `GET .../context` (includes `booking.location_mode`), `.../availability`, `POST .../appointments`, `POST .../waitlist`.
 
 **Client demo:** `client@example.com` / `password` — loyalty, favorites, and booking history for Luxe Bloom.
 
@@ -147,6 +151,44 @@ npm install
 # Full Expo/RN bootstrap documented in mobile-reactnative/README.md
 ```
 
+## Feature overview
+
+| Area | Highlights |
+|------|------------|
+| **Multi-tenant** | Slug workspaces, custom domains, strict `tenant_id` isolation |
+| **Auth & RBAC** | Sanctum tokens, Spatie permissions, platform + tenant roles |
+| **Booking** | Availability, multi-service, group/recurring, waitlist, public `/book` |
+| **Payments** | Paystack & Flutterwave, deposits, subscriptions, coupons |
+| **Notifications** | MNotify SMS + queued email (confirm, reminder, cancel, payment, OTP) |
+| **Analytics** | Tenant reports + Super Admin MRR / tenant growth |
+| **Admin** | General Office: tenants, billing, plans, coupons, SMS log, onboarding |
+
+## Production checklist
+
+See **[Market readiness checklist](docs/MARKET-READINESS.md)** for smoke tests, env vars, and launch steps.
+
+Quick verification:
+
+```bash
+# UI rules (no motion tags)
+cd frontend-nextjs && npm run verify:ui
+
+# Auth + API (backend must be running)
+./scripts/check-auth.sh
+
+# Queue worker (SMS/email)
+cd backend-laravel && php artisan queue:work
+```
+
+### Key environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `FRONTEND_URL` | Checkout redirects, email links |
+| `PAYSTACK_*` / `FLUTTERWAVE_*` | Payments (optional demo mode) |
+| `MNOTIFY_API_KEY` | SMS (logs only if empty) |
+| `QUEUE_CONNECTION` | Use `database` + `queue:work` for notifications |
+
 ## Documentation
 
 - [Architecture overview](docs/ARCHITECTURE.md)
@@ -154,6 +196,7 @@ npm install
 - [Multi-tenancy](docs/MULTI-TENANCY.md)
 - [Authentication](docs/AUTHENTICATION.md)
 - [Setup commands](docs/SETUP.md)
+- [Market readiness](docs/MARKET-READINESS.md)
 
 ## License
 

@@ -32,10 +32,11 @@ class DemoSeeder extends Seeder
         $registrar->setPermissionsTeamId($platformTeamId);
 
         Coupon::query()->updateOrCreate(
-            ['code' => 'WELCOME20'],
+            ['code' => 'WELCOME20', 'tenant_id' => null],
             [
                 'type' => 'percent',
                 'value' => 20,
+                'scope' => 'subscription',
                 'max_redemptions' => 1000,
                 'is_active' => true,
                 'expires_at' => now()->addYear(),
@@ -43,10 +44,11 @@ class DemoSeeder extends Seeder
         );
 
         Coupon::query()->updateOrCreate(
-            ['code' => 'SAVE10'],
+            ['code' => 'SAVE10', 'tenant_id' => null],
             [
                 'type' => 'fixed',
                 'value' => 1000,
+                'scope' => 'subscription',
                 'max_redemptions' => null,
                 'is_active' => true,
             ]
@@ -81,7 +83,7 @@ class DemoSeeder extends Seeder
                 'status' => TenantStatus::Active,
                 'plan' => 'professional',
                 'timezone' => 'America/New_York',
-                'currency' => 'USD',
+                'currency' => 'GHS',
                 'logo_url' => null,
                 'banner_url' => null,
                 'primary_color' => '#F8BBD0',
@@ -93,7 +95,13 @@ class DemoSeeder extends Seeder
                 'city' => 'Miami',
                 'country' => 'US',
                 'website_url' => 'https://luxebloom.demo',
-                'settings' => [],
+                'settings' => [
+                    'payments' => [
+                        'enabled' => true,
+                        'deposit_percent' => 30,
+                        'require_full_payment' => false,
+                    ],
+                ],
             ]
         );
 
@@ -113,6 +121,18 @@ class DemoSeeder extends Seeder
         $manager = $this->seedTenantUser($tenant, 'manager@luxebloom.demo', 'Jordan Lee', UserType::Manager, 'manager');
         $staffUser = $this->seedTenantUser($tenant, 'maya@luxebloom.demo', 'Maya Chen', UserType::Staff, 'staff');
         $client = $this->seedTenantUser($tenant, 'client@example.com', 'Emma Wilson', UserType::Client, 'client');
+
+        Coupon::query()->updateOrCreate(
+            ['tenant_id' => $tenant->id, 'code' => 'BOOK15'],
+            [
+                'type' => 'percent',
+                'value' => 15,
+                'scope' => 'booking',
+                'max_redemptions' => 500,
+                'is_active' => true,
+                'expires_at' => now()->addMonths(6),
+            ]
+        );
 
         $location = Location::withoutGlobalScope('tenant')->updateOrCreate(
             ['tenant_id' => $tenant->id, 'name' => 'Luxe Bloom — Flagship'],

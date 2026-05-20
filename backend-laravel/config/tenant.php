@@ -18,6 +18,8 @@ return [
     */
     'header' => 'X-Tenant-Id',
 
+    'slug_header' => 'X-Tenant-Slug',
+
     /** Path segment index for workplace host slug (1 = first segment after domain). */
     'workplace_slug_segment' => (int) env('TENANT_WORKPLACE_SLUG_SEGMENT', 1),
 
@@ -34,6 +36,10 @@ return [
         'services',
         'clients',
         'settings',
+        'reports',
+        'coupons',
+        'payments',
+        'onboarding',
     ],
 
     /** Allow custom domains before DNS verification (local dev only). */
@@ -59,5 +65,16 @@ return [
     'default_primary_color' => '#F8BBD0',
 
     'default_accent_color' => '#E879A6',
+
+    /** Merged into `tenants.settings` on onboarding. */
+    'default_settings' => [
+        /** When false, public booking uses the tenant address only (no branch picker). */
+        'multiple_locations' => false,
+        'payments' => [
+            'enabled' => false,
+            'deposit_percent' => 30,
+            'require_full_payment' => false,
+        ],
+    ],
 
 ];

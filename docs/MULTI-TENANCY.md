@@ -1,5 +1,28 @@
 # Multi-Tenancy
 
+## SaaS hierarchy (important)
+
+SalonApp is **multi-tenant SaaS**: one platform, many independent businesses.
+
+```
+Platform (SalonApp)
+├── Super Admin / Office Admin     →  /admin  (all tenants)
+└── Tenant (each paying salon)     →  /{slug}/dashboard
+    ├── Users (owner, staff, clients) via tenant_user
+    ├── Services, staff, appointments  (tenant_id scoped)
+    └── Locations (optional branches)  — NOT separate tenants
+```
+
+| Concept | What it is | Example |
+|---------|------------|---------|
+| **Tenant** | One salon / spa business on the platform | `luxe-bloom` |
+| **Location** | Optional branch under that tenant | "Flagship Miami" — only if `settings.multiple_locations` is true and you add 2+ rows |
+| **Platform admin** | Operates the whole SaaS | `office@salonapp.com` |
+
+Default onboarding sets `tenants.settings.multiple_locations = false`. Public booking uses the **tenant address** (`address_line1`, `city`, …) with **no branch picker**. Enable multiple locations per tenant when that business truly has several branches.
+
+`GET /api/v1/{slug}/context` returns `booking.location_mode`: `none` | `single` | `multi`.
+
 ## Model: single database, shared schema
 
 Each tenant is a row in `tenants`. Tenant-owned tables include `tenant_id` with:

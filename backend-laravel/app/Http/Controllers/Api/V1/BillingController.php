@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\PlatformPlan;
 use App\Services\BillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,9 +17,7 @@ class BillingController extends Controller
 
     public function plans(): JsonResponse
     {
-        $plans = collect(config('billing.plans', []))->map(function ($plan, $id) {
-            return array_merge(['id' => $id], $plan);
-        })->values();
+        $plans = collect(PlatformPlan::billingCatalog())->values();
 
         return response()->json(['data' => $plans, 'currency' => config('billing.currency')]);
     }
@@ -27,25 +26,30 @@ class BillingController extends Controller
     {
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50'],
-            'plan_id' => ['required', Rule::in(array_keys(config('billing.plans', [])))],
+            'plan_id' => ['required', Rule::in(array_keys(PlatformPlan::billingCatalog()))],
         ]);
 
         $plan = $this->billing->plan($validated['plan_id']);
         $amountCents = (int) ($plan['price_cents'] ?? 0);
-        $result = $this->billing->validateCoupon($validated['code'], $amountCents);
+        $result = $this->billing->validateCoupon(
+            $validated['code'],
+            $amountCents,
+            $validated['plan_id'],
+        );
 
         return response()->json([
             'valid' => $result['valid'],
             'message' => $result['message'] ?? null,
             'discount_cents' => $result['discount_cents'],
-            'final_amount_cents' => max(0, $amountCents - $result['discount_cents']),
+            'final_amount_cents' => $result['final_amount_cents']
+                ?? max(0, $amountCents - $result['discount_cents']),
         ]);
     }
 
     public function checkout(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan_id' => ['required', Rule::in(array_keys(config('billing.plans', [])))],
+            'plan_id' => ['required', Rule::in(array_keys(PlatformPlan::billingCatalog()))],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'provider' => ['required', Rule::in(['paystack', 'flutterwave'])],
         ]);

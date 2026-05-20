@@ -16,7 +16,6 @@ class UserResource extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'avatar_url' => $this->avatar_url,
-            'phone' => $this->phone,
             'bio' => $this->bio,
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'marketing_opt_in' => $this->marketing_opt_in,
@@ -24,6 +23,10 @@ class UserResource extends JsonResource
             'account_intent' => $this->account_intent,
             'onboarding_status' => $this->onboarding_status?->value ?? $this->onboarding_status,
             'selected_plan' => $this->selected_plan,
+            'owned_tenant_slug' => $this->when(
+                $this->relationLoaded('tenants'),
+                fn () => $this->tenants->first(fn ($t) => (bool) ($t->pivot->is_owner ?? false))?->slug
+            ),
             'roles' => $this->whenLoaded('roles', fn () => $this->roles->pluck('name')),
         ];
     }

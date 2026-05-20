@@ -10,6 +10,8 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\Tenant;
+use App\Services\LoginLogService;
+use App\Support\PermissionList;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Illuminate\Http\JsonResponse;
@@ -59,18 +61,42 @@ class AuthController extends Controller
         ], 201);
     }
 
-    public function login(LoginRequest $request): JsonResponse
+    /**
+     * Issue a Sanctum personal access token (mobile / integrations).
+     */
+    public function token(LoginRequest $request): JsonResponse
+    {
+        return $this->login($request);
+    }
+
+    public function login(LoginRequest $request, LoginLogService $loginLogs): JsonResponse
     {
         $email = strtolower(trim($request->validated('email')));
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
+            $loginLogs->recordFailure($user, $request, 'invalid_credentials');
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
+        if ($user->trashed()) {
+            $loginLogs->recordFailure($user, $request, 'account_deleted');
+            throw ValidationException::withMessages([
+                'email' => ['This account is no longer available.'],
+            ]);
+        }
+
+        if ($user->is_blocked) {
+            $loginLogs->recordFailure($user, $request, 'account_blocked');
+            throw ValidationException::withMessages([
+                'email' => ['This account has been blocked. Contact support.'],
+            ]);
+        }
+
         if (! $user->is_active) {
+            $loginLogs->recordFailure($user, $request, 'account_inactive');
             throw ValidationException::withMessages([
                 'email' => ['This account has been deactivated.'],
             ]);
@@ -78,6 +104,14 @@ class AuthController extends Controller
 
         $user->tokens()->where('name', 'api')->delete();
         $token = $user->createToken('api')->plainTextToken;
+        $loginLogs->recordSuccess($user, $request);
+
+        if (
+            $user->account_intent === 'salon_owner'
+            || in_array($user->user_type, [UserType::TenantOwner, UserType::Manager, UserType::Staff], true)
+        ) {
+            $user->load(['tenants' => fn ($q) => $q->whereRaw('"tenant_user"."is_owner" IS TRUE')]);
+        }
 
         return response()->json([
             'token' => $token,
@@ -88,7 +122,17 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->load(['roles', 'tenants']);
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->setPermissionsTeamId(config('tenant.platform_team_id', 0));
+
+        $user->load([
+            'roles',
+            'tenants' => fn ($q) => $q->whereRaw('"tenant_user"."is_owner" IS TRUE'),
+        ]);
+
+        $platformPermissions = $user->isSuperAdmin()
+            ? PermissionList::all()
+            : $user->getAllPermissions()->pluck('name')->values();
 
         return response()->json([
             'user' => new UserResource($user),
@@ -98,6 +142,8 @@ class AuthController extends Controller
                 'slug' => $tenant->slug,
                 'is_owner' => (bool) $tenant->pivot->is_owner,
             ]),
+            'platform_roles' => $user->getRoleNames()->values(),
+            'platform_permissions' => $platformPermissions,
         ]);
     }
 

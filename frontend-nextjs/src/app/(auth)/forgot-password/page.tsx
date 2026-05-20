@@ -8,17 +8,27 @@ import { Input } from "@/components/ui/input";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { AuthFormCard } from "@/components/auth/auth-form-card";
 import { AuthField, authInputClass } from "@/components/auth/auth-field";
+import { createApiClient, ApiError } from "@/lib/api/client";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSent(true);
-    toast.message("Password reset", {
-      description: "Reset links are coming soon. Contact your salon for help in the meantime.",
-    });
+    setLoading(true);
+    try {
+      await createApiClient().post("/auth/forgot-password", {
+        email: email.trim().toLowerCase(),
+      });
+      setSent(true);
+      toast.success("Check your inbox for a reset link.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not send reset link");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -50,11 +60,12 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 className={authInputClass}
                 required
+                disabled={loading}
               />
             </AuthField>
-            <Button type="submit" className="h-11 w-full gap-2">
+            <Button type="submit" className="h-11 w-full gap-2" disabled={loading}>
               <Send className="h-4 w-4" />
-              Send reset link
+              {loading ? "Sending…" : "Send reset link"}
             </Button>
           </form>
         )}

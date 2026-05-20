@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Calendar, Sparkles, Users, BarChart3, Shield } from "lucide-react";
+import { ArrowRight, Calendar, Scissors, Users, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -32,7 +32,7 @@ export default function MarketingPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link href="/" className="flex items-center gap-2 font-semibold text-foreground">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-            <Sparkles className="h-5 w-5" />
+            <Scissors className="h-5 w-5" />
           </span>
           SalonApp
         </Link>

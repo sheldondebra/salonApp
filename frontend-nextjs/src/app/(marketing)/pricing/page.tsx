@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanComparisonTable } from "@/components/pricing/plan-comparison-table";
@@ -12,7 +12,7 @@ export default function PricingPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-            <Sparkles className="h-5 w-5" />
+            <Scissors className="h-5 w-5" />
           </span>
           SalonApp
         </Link>
@@ -39,7 +39,7 @@ export default function PricingPage() {
         </p>
       </section>
 
-      <section className="mx-auto grid max-w-6xl gap-6 px-6 pb-16 md:grid-cols-3">
+      <section className="mx-auto grid max-w-6xl gap-6 px-6 pb-16 sm:grid-cols-2 lg:grid-cols-4">
         {plans.map((plan) => (
           <Card
             key={plan.id}
@@ -59,7 +59,7 @@ export default function PricingPage() {
               <p className="pt-2 text-3xl font-semibold">
                 {plan.price != null ? (
                   <>
-                    ${plan.price}
+                    GHS {plan.price.toLocaleString()}
                     <span className="text-base font-normal text-muted-foreground">/mo</span>
                   </>
                 ) : (

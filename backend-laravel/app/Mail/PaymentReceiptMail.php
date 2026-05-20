@@ -30,8 +30,18 @@ class PaymentReceiptMail extends Mailable
 
     public function content(): Content
     {
+        $planName = $this->subscription->metadata['plan_name'] ?? $this->subscription->plan_id;
+
         return new Content(
-            markdown: 'emails.payment-receipt',
+            view: 'emails.payment-receipt-html',
+            with: [
+                'user' => $this->user,
+                'invoice' => $this->invoice,
+                'planName' => $planName,
+                'amountFormatted' => number_format($this->invoice->amount_cents / 100, 2),
+                'paidAt' => $this->invoice->paid_at?->format('M j, Y g:i A') ?? now()->format('M j, Y'),
+                'ctaUrl' => config('billing.frontend_url').'/onboarding',
+            ],
         );
     }
 }

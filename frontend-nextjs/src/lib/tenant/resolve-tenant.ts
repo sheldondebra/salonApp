@@ -14,10 +14,15 @@ const RESERVED_SLUGS = new Set([
   "book",
   "staff",
   "dashboard",
+  "reports",
   "appointments",
   "services",
   "clients",
   "settings",
+  "reports",
+  "coupons",
+  "payments",
+  "onboarding",
 ]);
 
 export function resolveTenantFromHost(host: string, pathname: string): TenantResolution {

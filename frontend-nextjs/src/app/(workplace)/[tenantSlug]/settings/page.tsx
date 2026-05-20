@@ -1,61 +1,85 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { RequirePermission } from "@/components/auth/require-permission";
-import { WorkplaceShell } from "@/components/layout/workplace-shell";
+import { WorkplacePageShell } from "@/components/layout/workplace-page-shell";
+import { BrandingSettingsForm } from "@/features/settings/branding-settings-form";
+import { NotificationSettingsForm } from "@/features/settings/notification-settings-form";
+import { TenantCouponsSection } from "@/features/settings/tenant-coupons-section";
+import type { OnboardingProgress } from "@/features/onboarding/types";
 import { Permissions } from "@/lib/auth/permissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { useTenant } from "@/hooks/use-tenant";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
+import { createApiClient } from "@/lib/api/client";
+import { getApiClientOptions } from "@/lib/auth/session";
+import type { Tenant } from "@/lib/api/types";
 
-export default function SettingsPage({ params }: { params: { tenantSlug: string } }) {
-  const { tenant, loading } = useTenant(params.tenantSlug);
-  const branding = tenant?.branding;
+function SettingsContent({ tenantSlug, tenant }: { tenantSlug: string; tenant: Tenant }) {
+  const [onboarding, setOnboarding] = useState<OnboardingProgress | null>(null);
+  const [businessTypeLabel, setBusinessTypeLabel] = useState<string | null>(null);
 
-  if (loading) return <Skeleton className="m-8 h-64 rounded-2xl" />;
+  useEffect(() => {
+    createApiClient(getApiClientOptions())
+      .get<{
+        onboarding: OnboardingProgress;
+        settings: { business_type_label?: string | null };
+      }>(`/${tenantSlug}/settings`)
+      .then((res) => {
+        setOnboarding(res.onboarding);
+        setBusinessTypeLabel(
+          res.settings?.business_type_label ?? tenant.business_type_label ?? null
+        );
+      })
+      .catch(() => toast.error("Could not load settings"));
+  }, [tenant, tenantSlug]);
 
   return (
-    <WorkplaceShell tenantSlug={params.tenantSlug} tenantName={tenant?.name ?? params.tenantSlug}>
-      <RequirePermission tenantSlug={params.tenantSlug} permission={Permissions.settings.manage}>
+    <RequirePermission tenantSlug={tenantSlug} permission={Permissions.settings.manage}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-semibold">Settings</h1>
-          <p className="text-muted-foreground">Branding and business profile</p>
-        </div>
-        <Card className="max-w-2xl shadow-soft">
-          <CardHeader>
-            <CardTitle>Branding</CardTitle>
-            <CardDescription>Logo, colors, and public booking page details</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Business name</Label>
-              <Input defaultValue={tenant?.name} readOnly />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Primary color</Label>
-                <Input defaultValue={branding?.primary_color ?? "#F8BBD0"} readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label>Accent color</Label>
-                <Input defaultValue={branding?.accent_color ?? "#E879A6"} readOnly />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Tagline</Label>
-              <Input defaultValue={branding?.tagline ?? ""} readOnly />
-            </div>
-            <Button onClick={() => toast.info("Branding save API coming in next release")}>
-              Save changes
-            </Button>
-          </CardContent>
-        </Card>
+        {businessTypeLabel ? (
+          <Card className="max-w-3xl shadow-soft">
+            <CardHeader>
+              <CardTitle>Business type</CardTitle>
+              <CardDescription>Your workspace category</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-lg font-medium">{businessTypeLabel}</p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {onboarding ? (
+          <Card className="max-w-3xl shadow-soft">
+            <CardHeader>
+              <CardTitle>Setup progress</CardTitle>
+              <CardDescription>
+                {onboarding.completed_count} of {onboarding.total} steps completed
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Progress value={onboarding.percent} />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <BrandingSettingsForm tenantSlug={tenantSlug} tenant={tenant} />
+        <NotificationSettingsForm tenantSlug={tenantSlug} />
+        <TenantCouponsSection tenantSlug={tenantSlug} />
       </div>
-      </RequirePermission>
-    </WorkplaceShell>
+    </RequirePermission>
+  );
+}
+
+export default function SettingsPage({ params }: { params: { tenantSlug: string } }) {
+  return (
+    <WorkplacePageShell
+      tenantSlug={params.tenantSlug}
+      title="Settings"
+      description="Branding and public booking page"
+      skeletonVariant="form"
+    >
+      {({ tenant }) => <SettingsContent tenantSlug={params.tenantSlug} tenant={tenant} />}
+    </WorkplacePageShell>
   );
 }

@@ -22,6 +22,13 @@ class TenantResolver
             }
         }
 
+        $slugHeader = config('tenant.slug_header');
+        if ($slugHeader && ($slug = $request->header($slugHeader))) {
+            if ($tenant = $this->findActiveTenantBySlug((string) $slug)) {
+                return new TenantResolution($tenant, TenantResolutionSource::Header);
+            }
+        }
+
         $host = strtolower($request->getHost());
 
         if ($custom = $this->resolveByCustomDomain($host)) {

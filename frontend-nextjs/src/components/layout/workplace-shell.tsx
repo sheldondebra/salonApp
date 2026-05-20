@@ -1,106 +1,108 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
+  BarChart3,
   CalendarDays,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Scissors,
   Settings,
-  Sparkles,
+  UserCircle,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { clearAuthToken } from "@/lib/auth/session";
-import { useRouter } from "next/navigation";
 import { useAbilities } from "@/hooks/use-abilities";
 import { Permissions } from "@/lib/auth/permissions";
+import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
+import type { ShellNavItem } from "@/components/layout/shell-types";
 
-const navItems = [
-  { href: "dashboard", label: "Dashboard", icon: LayoutDashboard, permission: Permissions.analytics.view },
-  { href: "appointments", label: "Appointments", icon: CalendarDays, permission: Permissions.bookings.view },
-  { href: "services", label: "Services", icon: Scissors, permission: Permissions.services.view },
-  { href: "clients", label: "Clients", icon: Users, permission: Permissions.clients.view },
-  { href: "settings", label: "Settings", icon: Settings, permission: Permissions.settings.manage },
+const navDefs = [
+  { segment: "dashboard", label: "Dashboard", icon: LayoutDashboard, permission: Permissions.analytics.view },
+  { segment: "reports", label: "Reports", icon: BarChart3, permission: Permissions.analytics.view },
+  { segment: "appointments", label: "Appointments", icon: CalendarDays, permission: Permissions.bookings.view },
+  { segment: "branches", label: "Branches", icon: MapPin, permission: [Permissions.services.view, Permissions.settings.manage] },
+  { segment: "services", label: "Services", icon: Scissors, permission: Permissions.services.view },
+  { segment: "staff", label: "Team", icon: UserCircle, permission: Permissions.staff.view },
+  { segment: "clients", label: "Clients", icon: Users, permission: Permissions.clients.view },
+  { segment: "settings", label: "Settings", icon: Settings, permission: Permissions.settings.manage },
 ];
 
 type WorkplaceShellProps = {
   tenantSlug: string;
   tenantName: string;
   tagline?: string | null;
+  title?: string;
+  description?: string;
   children: React.ReactNode;
 };
 
-export function WorkplaceShell({ tenantSlug, tenantName, tagline, children }: WorkplaceShellProps) {
-  const pathname = usePathname();
+export function WorkplaceShell({
+  tenantSlug,
+  tenantName,
+  tagline,
+  title,
+  description,
+  children,
+}: WorkplaceShellProps) {
   const router = useRouter();
   const base = `/${tenantSlug}`;
   const { can, loading: abilitiesLoading } = useAbilities(tenantSlug);
 
   const visibleNav = abilitiesLoading
-    ? navItems
-    : navItems.filter((item) => can(item.permission));
+    ? navDefs
+    : navDefs.filter((item) => can(item.permission));
+
+  const navItems: ShellNavItem[] = visibleNav.map((item) => ({
+    href: `${base}/${item.segment}`,
+    label: item.label,
+    icon: item.icon,
+  }));
+
+  const sidebarFooter = (
+    <div className="space-y-2">
+      <Link
+        href={`${base}/book`}
+        className="flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/15"
+      >
+        View booking page
+      </Link>
+      <Button
+        variant="ghost"
+        className="w-full justify-start gap-2"
+        onClick={() => {
+          clearAuthToken();
+          router.push("/login");
+        }}
+      >
+        <LogOut className="h-4 w-4" />
+        Sign out
+      </Button>
+    </div>
+  );
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
-        <div className="flex items-center gap-3 p-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Sparkles className="h-5 w-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-sidebar-foreground">{tenantName}</p>
-            {tagline ? <p className="truncate text-xs text-muted-foreground">{tagline}</p> : null}
-          </div>
-        </div>
-        <Separator />
-        <nav className="flex-1 space-y-1 p-4">
-          {visibleNav.map((item) => {
-            const href = `${base}/${item.href}`;
-            const active = pathname === href || pathname.startsWith(`${href}/`);
-            return (
-              <Link
-                key={item.href}
-                href={href}
-                className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="space-y-2 border-t border-sidebar-border p-4">
-          <Link
-            href={`${base}/book`}
-            className="flex items-center justify-center rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
-          >
-            View booking page
-          </Link>
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-2"
-            onClick={() => {
-              clearAuthToken();
-              router.push("/login");
-            }}
-          >
-            <LogOut className="h-4 w-4" />
-            Sign out
-          </Button>
-        </div>
-      </aside>
-      <main className="flex-1 overflow-auto">
-        <div className="mx-auto max-w-7xl p-4 md:p-8">{children}</div>
-      </main>
-    </div>
+    <AppShell
+      brand={{
+        title: tenantName,
+        subtitle: tagline ?? undefined,
+        href: `${base}/dashboard`,
+        logo: <Scissors className="h-5 w-5" />,
+      }}
+      navItems={navItems}
+      sidebarFooter={sidebarFooter}
+      mobileTitle={tenantName}
+      mobileSubtitle={tagline ?? undefined}
+      mainClassName="mx-auto max-w-7xl"
+      header={
+        title ? <PageHeader title={title} description={description} /> : undefined
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

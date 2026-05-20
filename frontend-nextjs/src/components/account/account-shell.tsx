@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Heart, Sparkles, User, Gift } from "lucide-react";
+import { Calendar, Heart, Scissors, User, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearAuthToken } from "@/lib/auth/session";
@@ -37,7 +37,7 @@ export function AccountShell({ tenantSlug, tenantName, children }: AccountShellP
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href={`/${tenantSlug}/book`} className="flex items-center gap-2 font-semibold">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Sparkles className="h-4 w-4" />
+              <Scissors className="h-4 w-4" />
             </span>
             {tenantName}
           </Link>

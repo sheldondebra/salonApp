@@ -30,8 +30,17 @@ class BillingInvoiceMail extends Mailable
 
     public function content(): Content
     {
+        $planName = $this->subscription->metadata['plan_name'] ?? $this->subscription->plan_id;
+
         return new Content(
-            markdown: 'emails.billing-invoice',
+            view: 'emails.billing-invoice-html',
+            with: [
+                'user' => $this->user,
+                'invoice' => $this->invoice,
+                'planName' => $planName,
+                'amountFormatted' => number_format($this->invoice->amount_cents / 100, 2),
+                'ctaUrl' => config('billing.frontend_url').'/onboarding',
+            ],
         );
     }
 }

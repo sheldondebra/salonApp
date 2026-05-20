@@ -37,7 +37,11 @@ Route::middleware('permission:analytics.view')->group(...);
 Route::middleware('permission:bookings.view|bookings.create')->group(...); // OR
 ```
 
-Policies: `AppointmentPolicy`, `TenantPolicy`, `DashboardPolicy`
+Policies: `AppointmentPolicy`, `ServicePolicy`, `TenantPolicy`, `DashboardPolicy`
+
+Assign tenant role: `PATCH /api/v1/{tenantSlug}/team/{user}/role` (requires `settings.manage` or `staff.update`)
+
+Sanctum token (mobile): `POST /api/v1/auth/token` (same as login)
 
 ## Frontend
 

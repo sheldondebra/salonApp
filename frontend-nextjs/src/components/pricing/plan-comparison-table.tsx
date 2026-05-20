@@ -1,5 +1,5 @@
 import { Check, Minus } from "lucide-react";
-import { comparisonRows, plans } from "@/lib/pricing/plans";
+import { comparisonRows, plans, type PlanId } from "@/lib/pricing/plans";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +19,12 @@ export function PlanComparisonTable() {
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="w-[40%]">Feature</TableHead>
+            <TableHead className="w-[28%]">Feature</TableHead>
             {plans.map((plan) => (
-              <TableHead key={plan.id} className="text-center">
+              <TableHead
+                key={plan.id}
+                className={cn("text-center", plan.highlighted && "bg-primary/5")}
+              >
                 {plan.name}
               </TableHead>
             ))}
@@ -31,15 +34,14 @@ export function PlanComparisonTable() {
           {comparisonRows.map((row) => (
             <TableRow key={row.label}>
               <TableCell className="font-medium">{row.label}</TableCell>
-              <TableCell className="text-center">
-                <CellValue value={row.starter} />
-              </TableCell>
-              <TableCell className={cn("text-center", "bg-primary/5")}>
-                <CellValue value={row.professional} />
-              </TableCell>
-              <TableCell className="text-center">
-                <CellValue value={row.enterprise} />
-              </TableCell>
+              {plans.map((plan) => (
+                <TableCell
+                  key={plan.id}
+                  className={cn("text-center", plan.highlighted && "bg-primary/5")}
+                >
+                  <CellValue value={row[plan.id as PlanId]} />
+                </TableCell>
+              ))}
             </TableRow>
           ))}
         </TableBody>

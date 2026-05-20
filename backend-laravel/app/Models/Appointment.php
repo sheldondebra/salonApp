@@ -13,6 +13,7 @@ class Appointment extends Model
 
     protected $fillable = [
         'tenant_id',
+        'booking_group_id',
         'uuid',
         'client_user_id',
         'staff_member_id',
@@ -21,6 +22,10 @@ class Appointment extends Model
         'starts_at',
         'ends_at',
         'status',
+        'payment_status',
+        'amount_due_cents',
+        'deposit_paid_cents',
+        'payment_reference',
         'notes',
     ];
 
@@ -57,5 +62,15 @@ class Appointment extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function bookingGroup(): BelongsTo
+    {
+        return $this->belongsTo(BookingGroup::class);
+    }
+
+    public function paymentTransactions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PaymentTransaction::class);
     }
 }

@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AccountShell } from "@/components/account/account-shell";
+import { ContentAreaSkeleton } from "@/components/shared/content-area-skeleton";
 import { useTenant } from "@/hooks/use-tenant";
 import { getAuthToken } from "@/lib/auth/session";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AccountLayout({
   children,
@@ -16,6 +16,9 @@ export default function AccountLayout({
 }) {
   const router = useRouter();
   const { tenant, loading } = useTenant(params.tenantSlug);
+  const displayName =
+    tenant?.name ??
+    params.tenantSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
   useEffect(() => {
     if (!getAuthToken()) {
@@ -23,13 +26,9 @@ export default function AccountLayout({
     }
   }, [params.tenantSlug, router]);
 
-  if (loading) {
-    return <Skeleton className="m-10 h-96 rounded-2xl" />;
-  }
-
   return (
-    <AccountShell tenantSlug={params.tenantSlug} tenantName={tenant?.name ?? params.tenantSlug}>
-      {children}
+    <AccountShell tenantSlug={params.tenantSlug} tenantName={displayName}>
+      {loading ? <ContentAreaSkeleton variant="form" /> : children}
     </AccountShell>
   );
 }

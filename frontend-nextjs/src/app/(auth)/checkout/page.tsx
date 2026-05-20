@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { formatMoney } from "@/lib/pricing/format-money";
 import { plans } from "@/lib/pricing/plans";
 import type { BillingPlan } from "@/lib/api/types";
 
@@ -22,6 +23,7 @@ function CheckoutForm() {
   const planMeta = plans.find((p) => p.id === planId);
 
   const [apiPlan, setApiPlan] = useState<BillingPlan | null>(null);
+  const [currency, setCurrency] = useState("GHS");
   const [coupon, setCoupon] = useState("");
   const [discountCents, setDiscountCents] = useState(0);
   const [finalCents, setFinalCents] = useState(0);
@@ -37,8 +39,9 @@ function CheckoutForm() {
 
   useEffect(() => {
     createApiClient()
-      .get<{ data: BillingPlan[] }>("/billing/plans")
+      .get<{ data: BillingPlan[]; currency?: string }>("/billing/plans")
       .then((res) => {
+        if (res.currency) setCurrency(res.currency);
         const found = res.data.find((p) => p.id === planId);
         if (found) {
           setApiPlan(found);
@@ -95,7 +98,7 @@ function CheckoutForm() {
     }
   }
 
-  const amount = (finalCents / 100).toFixed(2);
+  const amountLabel = formatMoney(finalCents, currency);
 
   return (
     <AuthLayout
@@ -113,17 +116,17 @@ function CheckoutForm() {
         <CardContent className="space-y-4">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Subtotal</span>
-            <span>${((apiPlan?.price_cents ?? 0) / 100).toFixed(2)}</span>
+            <span>{formatMoney(apiPlan?.price_cents ?? 0, currency)}</span>
           </div>
           {discountCents > 0 ? (
             <div className="flex justify-between text-sm text-emerald-600">
               <span>Discount</span>
-              <span>-${(discountCents / 100).toFixed(2)}</span>
+              <span>-{formatMoney(discountCents, currency)}</span>
             </div>
           ) : null}
           <div className="flex justify-between border-t border-border pt-3 font-semibold">
             <span>Total due today</span>
-            <span>${amount}</span>
+            <span>{amountLabel}</span>
           </div>
         </CardContent>
       </Card>
@@ -156,7 +159,7 @@ function CheckoutForm() {
 
         <Button className="w-full" onClick={pay} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-          {loading ? "Redirecting…" : `Pay $${amount}`}
+          {loading ? "Redirecting…" : `Pay ${amountLabel}`}
         </Button>
 
         <p className="text-center text-xs text-muted-foreground">

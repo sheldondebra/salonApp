@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Lock, LogIn, Mail } from "lucide-react";
@@ -13,7 +13,7 @@ import { AuthField, authInputClass } from "@/components/auth/auth-field";
 import { PasswordInput } from "@/components/auth/password-input";
 import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { createApiClient, ApiError } from "@/lib/api/client";
-import { setAuthToken } from "@/lib/auth/session";
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth/session";
 import { redirectPathAfterAuth } from "@/lib/auth/redirect-after-auth";
 import type { User } from "@/lib/api/types";
 
@@ -25,7 +25,29 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const submitting = useRef(false);
+
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      setCheckingSession(false);
+      return;
+    }
+
+    const next = searchParams.get("next");
+    createApiClient({ token })
+      .get<{ user: User }>("/me")
+      .then((res) => {
+        if (res.user) {
+          router.replace(redirectPathAfterAuth(res.user, next));
+        }
+      })
+      .catch(() => {
+        clearAuthToken();
+      })
+      .finally(() => setCheckingSession(false));
+  }, [router, searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,6 +91,20 @@ function LoginForm() {
       submitting.current = false;
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <AuthLayout
+        back={{ href: "/", label: "Back to home" }}
+        title="Welcome back"
+        subtitle="Checking your session…"
+      >
+        <AuthFormCard>
+          <p className="py-8 text-center text-sm text-muted-foreground">One moment…</p>
+        </AuthFormCard>
+      </AuthLayout>
+    );
   }
 
   return (
