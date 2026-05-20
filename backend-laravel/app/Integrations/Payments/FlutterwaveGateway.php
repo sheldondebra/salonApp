@@ -3,9 +3,8 @@
 namespace App\Integrations\Payments;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
-class FlutterwaveGateway implements PaymentGatewayContract
+class FlutterwaveGateway extends AbstractPaymentGateway
 {
     protected string $baseUrl = 'https://api.flutterwave.com/v3';
 
@@ -19,14 +18,9 @@ class FlutterwaveGateway implements PaymentGatewayContract
         return config('integrations.payments.providers.flutterwave.secret_key');
     }
 
-    public function isConfigured(): bool
-    {
-        return filled($this->secretKey());
-    }
-
     public function initializePayment(array $payload): array
     {
-        $reference = $payload['reference'] ?? 'salon_'.Str::uuid();
+        $reference = $payload['reference'] ?? $this->newReference('salon');
 
         if (! $this->isConfigured()) {
             return $this->demoInitialize($reference, $payload);
@@ -60,13 +54,7 @@ class FlutterwaveGateway implements PaymentGatewayContract
     public function verifyPayment(string $reference): array
     {
         if (! $this->isConfigured()) {
-            return [
-                'status' => 'success',
-                'provider_reference' => $reference,
-                'amount_cents' => 0,
-                'currency' => config('billing.currency'),
-                'raw' => ['demo' => true],
-            ];
+            return $this->demoVerifySuccess($reference);
         }
 
         $response = Http::withToken($this->secretKey())
@@ -99,27 +87,12 @@ class FlutterwaveGateway implements PaymentGatewayContract
     public function handleWebhook(array $payload): ?string
     {
         $event = $payload['event'] ?? null;
+        $status = $payload['data']['status'] ?? '';
 
-        if ($event === 'charge.completed' && ($payload['data']['status'] ?? '') === 'successful') {
+        if ($event === 'charge.completed' && $status === 'successful') {
             return $payload['data']['tx_ref'] ?? null;
         }
 
         return null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    protected function demoInitialize(string $reference, array $payload): array
-    {
-        $callback = $payload['callback_url'] ?? config('billing.frontend_callback');
-        $url = $callback.(str_contains($callback, '?') ? '&' : '?').'reference='.$reference.'&demo=1';
-
-        return [
-            'provider' => $this->provider(),
-            'reference' => $reference,
-            'authorization_url' => $url,
-            'demo_mode' => true,
-        ];
     }
 }

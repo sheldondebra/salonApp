@@ -16,14 +16,16 @@ import {
   WEEKDAYS,
   type OpeningHoursDay,
 } from "@/lib/branding/opening-hours";
+import { BrandingLivePreview } from "@/features/settings/branding-live-preview";
 import type { Tenant, TenantSocialLinks } from "@/lib/api/types";
 
 type BrandingSettingsFormProps = {
   tenantSlug: string;
   tenant: Tenant | null;
+  onTenantUpdated?: (tenant: Tenant) => void;
 };
 
-export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFormProps) {
+export function BrandingSettingsForm({ tenantSlug, tenant, onTenantUpdated }: BrandingSettingsFormProps) {
   const [tagline, setTagline] = useState("");
   const [description, setDescription] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -37,6 +39,7 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
   const [instagram, setInstagram] = useState("");
   const [facebook, setFacebook] = useState("");
   const [tiktok, setTiktok] = useState("");
+  const [twitter, setTwitter] = useState("");
   const [hours, setHours] = useState<OpeningHoursDay[]>(defaultOpeningHours());
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"logo" | "banner" | null>(null);
@@ -57,6 +60,7 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
     setInstagram(b.social?.instagram ?? "");
     setFacebook(b.social?.facebook ?? "");
     setTiktok(b.social?.tiktok ?? "");
+    setTwitter(b.social?.twitter ?? "");
     setHours(normalizeOpeningHours(b.opening_hours));
   }, [tenant]);
 
@@ -92,8 +96,11 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
         instagram: instagram || null,
         facebook: facebook || null,
         tiktok: tiktok || null,
+        twitter: twitter || null,
       };
-      await createApiClient(getApiClientOptions()).patch(`/${tenantSlug}/settings`, {
+      const res = await createApiClient(getApiClientOptions()).patch<{ tenant: Tenant }>(
+        `/${tenantSlug}/settings`,
+        {
         tagline,
         business_description: description,
         logo_url: logoUrl || null,
@@ -106,7 +113,9 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
         accent_color: accentColor,
         social,
         opening_hours: hours,
-      });
+        }
+      );
+      if (res.tenant) onTenantUpdated?.(res.tenant);
       toast.success("Branding saved");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save");
@@ -132,6 +141,15 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
+        <BrandingLivePreview
+          tenantName={tenant?.name ?? "Your salon"}
+          tagline={tagline}
+          logoUrl={logoUrl}
+          bannerUrl={bannerUrl}
+          primaryColor={primaryColor}
+          accentColor={accentColor}
+        />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Logo URL</Label>
@@ -200,10 +218,11 @@ export function BrandingSettingsForm({ tenantSlug, tenant }: BrandingSettingsFor
 
         <div className="space-y-3">
           <Label>Social links</Label>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <Input className="rounded-xl" placeholder="Instagram" value={instagram} onChange={(e) => setInstagram(e.target.value)} />
             <Input className="rounded-xl" placeholder="Facebook" value={facebook} onChange={(e) => setFacebook(e.target.value)} />
             <Input className="rounded-xl" placeholder="TikTok" value={tiktok} onChange={(e) => setTiktok(e.target.value)} />
+            <Input className="rounded-xl" placeholder="X / Twitter" value={twitter} onChange={(e) => setTwitter(e.target.value)} />
           </div>
         </div>
 

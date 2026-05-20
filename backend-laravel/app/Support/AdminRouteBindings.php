@@ -16,6 +16,7 @@ class AdminRouteBindings
 
         Route::pattern('user', $uuidPattern);
         Route::pattern('tenant', $uuidPattern);
+        Route::pattern('uuid', $uuidPattern);
 
         Route::bind('user', function (string $value) {
             if (! Str::isUuid($value)) {

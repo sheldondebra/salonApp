@@ -27,6 +27,7 @@ import { getApiClientOptions } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/format/money";
 import { ReportsFilters } from "./reports-filters";
 import { ChartCard } from "./chart-card";
+import { hasNumericActivity, hasRows } from "./chart-utils";
 import { defaultReportFilters, reportFiltersToQuery } from "./report-query";
 import type { ReportFiltersState, TenantReportPayload } from "./types";
 
@@ -76,6 +77,8 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
       value: row.count,
     })) ?? [];
 
+  const chartFade = loading && data ? "pointer-events-none opacity-60 transition-opacity" : "";
+
   return (
     <div className="space-y-6">
       <ReportsFilters
@@ -108,8 +111,11 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         <MetricCard title="Period" value={filters.from} hint={`to ${filters.to}`} icon={BarChart3} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Revenue">
+      <div className={`grid gap-6 lg:grid-cols-2 ${chartFade}`}>
+        <ChartCard
+          title="Revenue"
+          isEmpty={!hasNumericActivity(data?.revenue, ["revenue_cents"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.revenue ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -121,7 +127,7 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Bookings">
+        <ChartCard title="Bookings" isEmpty={!hasNumericActivity(data?.bookings, ["count"])}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.bookings ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -133,7 +139,7 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="New customers">
+        <ChartCard title="New customers" isEmpty={!hasNumericActivity(data?.customers, ["count"])}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data?.customers ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -145,7 +151,10 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="SMS usage">
+        <ChartCard
+          title="SMS usage"
+          isEmpty={!hasNumericActivity(data?.sms_usage, ["sent", "failed"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.sms_usage ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -160,8 +169,12 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         </ChartCard>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Staff performance" heightClass="h-80">
+      <div className={`grid gap-6 lg:grid-cols-2 ${chartFade}`}>
+        <ChartCard
+          title="Staff performance"
+          heightClass="h-80"
+          isEmpty={!hasRows(data?.staff_performance)}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.staff_performance ?? []} layout="vertical" margin={{ left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -173,7 +186,11 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Popular services" heightClass="h-80">
+        <ChartCard
+          title="Popular services"
+          heightClass="h-80"
+          isEmpty={!hasRows(data?.popular_services)}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.popular_services ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -185,22 +202,18 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Payment status">
-          {paymentData.length === 0 ? (
-            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">No payment data</p>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={paymentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
-                  {paymentData.map((_, i) => (
-                    <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+        <ChartCard title="Payment status" isEmpty={paymentData.length === 0}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={paymentData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label>
+                {paymentData.map((_, i) => (
+                  <Cell key={i} fill={PAYMENT_COLORS[i % PAYMENT_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </ChartCard>
       </div>
     </div>

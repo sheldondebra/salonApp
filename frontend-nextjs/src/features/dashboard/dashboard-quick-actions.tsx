@@ -56,7 +56,15 @@ export function DashboardQuickActions({ tenantSlug, can }: DashboardQuickActions
   if (visible.length === 0) return null;
 
   return (
-    <div>
+    <div
+      className={cn(
+        "grid w-full gap-3",
+        visible.length === 1 && "grid-cols-1",
+        visible.length === 2 && "grid-cols-1 sm:grid-cols-2",
+        visible.length === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+        visible.length >= 4 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+      )}
+    >
       {visible.map((action) => {
         const Icon = action.icon;
         return (
@@ -64,16 +72,18 @@ export function DashboardQuickActions({ tenantSlug, can }: DashboardQuickActions
             key={action.label}
             href={action.href}
             className={cn(
-              "group flex items-start gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-soft",
+              "group flex h-full min-h-[4.5rem] items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-soft",
               "transition-colors hover:border-primary/30 hover:bg-primary/5"
             )}
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-colors group-hover:bg-primary/25">
               <Icon className="h-5 w-5" />
             </span>
-            <span>
-              <span className="block font-medium text-foreground">{action.label}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{action.description}</span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium text-foreground">{action.label}</span>
+              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                {action.description}
+              </span>
             </span>
           </Link>
         );

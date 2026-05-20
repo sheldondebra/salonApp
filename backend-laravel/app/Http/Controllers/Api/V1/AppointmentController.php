@@ -84,7 +84,7 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function show(string $uuid): JsonResponse
+    public function show(string $tenantSlug, string $uuid): JsonResponse
     {
         $appointment = Appointment::query()
             ->where('uuid', $uuid)
@@ -100,6 +100,7 @@ class AppointmentController extends Controller
 
     public function update(
         UpdateAppointmentRequest $request,
+        string $tenantSlug,
         string $uuid,
         BookingService $booking,
         NotificationService $notifications,
@@ -144,13 +145,18 @@ class AppointmentController extends Controller
         BookingService $booking,
         NotificationService $notifications,
     ): JsonResponse {
+        $bookedVia = 'online';
         if ($request->user()) {
-            $this->authorize('create', Appointment::class);
+            if ($request->user()->can('create', Appointment::class)) {
+                $this->authorize('create', Appointment::class);
+                $bookedVia = 'staff';
+            }
         }
 
         $result = $booking->createBooking([
             ...$request->validated(),
-            'client_user_id' => $request->user()?->id,
+            'client_user_id' => $request->validated('client_user_id') ?? $request->user()?->id,
+            'booked_via' => $bookedVia,
         ]);
 
         $first = $result['appointments']->first();

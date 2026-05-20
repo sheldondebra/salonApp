@@ -35,6 +35,7 @@ class StoreBookingRequest extends FormRequest
             'recurrence' => ['nullable', 'array'],
             'recurrence.frequency' => ['nullable', Rule::in(['weekly', 'biweekly', 'monthly'])],
             'recurrence.occurrences' => ['nullable', 'integer', 'min:2', 'max:'.$maxRecurring],
+            'client_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'client_name' => ['required_without:client_user_id', 'string', 'max:255'],
             'client_email' => ['required_without:client_user_id', 'email', 'max:255'],
             'client_phone' => ['nullable', 'string', 'max:30'],

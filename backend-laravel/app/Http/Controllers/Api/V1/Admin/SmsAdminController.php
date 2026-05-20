@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\SmsMessageResource;
 use App\Models\SmsMessage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,10 @@ class SmsAdminController extends Controller
             $query->where('recipient', 'like', "%{$search}%");
         }
 
+        if ($type = $request->string('type')->trim()->toString()) {
+            $query->where('type', $type);
+        }
+
         $paginated = $query->paginate(min($request->integer('per_page', 20), 50));
 
         $summary = [
@@ -32,6 +37,14 @@ class SmsAdminController extends Controller
             'failed' => SmsMessage::query()->whereIn('status', ['failed', 'error'])->count(),
         ];
 
-        return response()->json(array_merge($paginated->toArray(), ['summary' => $summary]));
+        return response()->json([
+            'data' => SmsMessageResource::collection($paginated),
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'total' => $paginated->total(),
+            ],
+            'summary' => $summary,
+        ]);
     }
 }

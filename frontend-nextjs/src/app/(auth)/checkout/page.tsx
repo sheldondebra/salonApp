@@ -3,12 +3,12 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CreditCard, Loader2, Tag } from "lucide-react";
+import { CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ApplyCouponField } from "@/features/coupons/apply-coupon-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
@@ -24,12 +24,11 @@ function CheckoutForm() {
 
   const [apiPlan, setApiPlan] = useState<BillingPlan | null>(null);
   const [currency, setCurrency] = useState("GHS");
-  const [coupon, setCoupon] = useState("");
+  const [couponCode, setCouponCode] = useState<string | undefined>();
   const [discountCents, setDiscountCents] = useState(0);
   const [finalCents, setFinalCents] = useState(0);
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
   const [loading, setLoading] = useState(false);
-  const [validating, setValidating] = useState(false);
 
   useEffect(() => {
     if (!getApiClientOptions().token) {
@@ -51,33 +50,6 @@ function CheckoutForm() {
       .catch(() => {});
   }, [planId]);
 
-  async function applyCoupon() {
-    if (!coupon.trim()) return;
-    setValidating(true);
-    try {
-      const client = createApiClient(getApiClientOptions());
-      const res = await client.post<{
-        valid: boolean;
-        message?: string;
-        discount_cents: number;
-        final_amount_cents: number;
-      }>("/billing/coupons/validate", { code: coupon, plan_id: planId });
-      if (!res.valid) {
-        toast.error(res.message ?? "Invalid coupon");
-        setDiscountCents(0);
-        setFinalCents(apiPlan?.price_cents ?? 0);
-        return;
-      }
-      setDiscountCents(res.discount_cents);
-      setFinalCents(res.final_amount_cents);
-      toast.success("Coupon applied");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Could not validate coupon");
-    } finally {
-      setValidating(false);
-    }
-  }
-
   async function pay() {
     setLoading(true);
     try {
@@ -88,7 +60,7 @@ function CheckoutForm() {
         demo_mode?: boolean;
       }>("/billing/checkout", {
         plan_id: planId,
-        coupon_code: coupon || undefined,
+        coupon_code: couponCode,
         provider,
       });
       window.location.href = res.authorization_url;
@@ -132,26 +104,43 @@ function CheckoutForm() {
       </Card>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="coupon" className="flex items-center gap-1">
-            <Tag className="h-4 w-4" /> Coupon code
-          </Label>
-          <div className="flex gap-2">
-            <Input id="coupon" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} placeholder="WELCOME20" />
-            <Button type="button" variant="outline" onClick={applyCoupon} disabled={validating}>
-              Apply
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">Try WELCOME20 (20% off) or SAVE10 ($10 off)</p>
-        </div>
+        <ApplyCouponField
+          key={planId}
+          validatePath="/billing/coupons/validate"
+          validateBody={{ plan_id: planId }}
+          currency={currency}
+          subtotalCents={apiPlan?.price_cents ?? 0}
+          clientOptions={getApiClientOptions()}
+          onApplied={({ code, discountCents: discount, finalCents: final }) => {
+            setCouponCode(code);
+            setDiscountCents(discount);
+            setFinalCents(final);
+          }}
+          onCleared={() => {
+            setCouponCode(undefined);
+            setDiscountCents(0);
+            setFinalCents(apiPlan?.price_cents ?? 0);
+          }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Try WELCOME20 (20% off) or SAVE10 (fixed discount).
+        </p>
 
         <div className="space-y-2">
           <Label>Payment provider</Label>
           <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant={provider === "paystack" ? "default" : "outline"} onClick={() => setProvider("paystack")}>
+            <Button
+              type="button"
+              variant={provider === "paystack" ? "default" : "outline"}
+              onClick={() => setProvider("paystack")}
+            >
               Paystack
             </Button>
-            <Button type="button" variant={provider === "flutterwave" ? "default" : "outline"} onClick={() => setProvider("flutterwave")}>
+            <Button
+              type="button"
+              variant={provider === "flutterwave" ? "default" : "outline"}
+              onClick={() => setProvider("flutterwave")}
+            >
               Flutterwave
             </Button>
           </div>

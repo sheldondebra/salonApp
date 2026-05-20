@@ -44,10 +44,17 @@ export function BookingTimeSlots({
       </div>
 
       {loading ? (
-        <Skeleton className="h-32 w-full rounded-xl" />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-28 rounded-full" />
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 rounded-xl" />
+            ))}
+          </div>
+        </div>
       ) : slots.length === 0 ? (
         <p className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-          Choose a date to see open times.
+          No open times for this date. Try another day or join the waitlist.
         </p>
       ) : (
         <>

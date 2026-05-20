@@ -5,6 +5,9 @@ import { Bell, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TenantSmsLog } from "@/features/notifications/tenant-sms-log";
+import { TenantSmsWalletCard } from "@/features/sms/tenant-sms-wallet-card";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 
@@ -117,7 +120,11 @@ export function NotificationSettingsForm({ tenantSlug }: NotificationSettingsFor
     setSettings((prev) => (prev ? { ...prev, [key]: value } : prev));
   }
 
-  if (loading || !settings) {
+  if (loading) {
+    return <Skeleton className="h-64 max-w-3xl rounded-2xl" />;
+  }
+
+  if (!settings) {
     return null;
   }
 
@@ -125,6 +132,7 @@ export function NotificationSettingsForm({ tenantSlug }: NotificationSettingsFor
   const emailOff = !settings.email_enabled;
 
   return (
+    <>
     <Card className="max-w-3xl shadow-soft">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -172,5 +180,8 @@ export function NotificationSettingsForm({ tenantSlug }: NotificationSettingsFor
         </Button>
       </CardContent>
     </Card>
+    <TenantSmsWalletCard tenantSlug={tenantSlug} />
+    <TenantSmsLog tenantSlug={tenantSlug} />
+    </>
   );
 }

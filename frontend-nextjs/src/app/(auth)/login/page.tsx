@@ -72,12 +72,6 @@ function LoginForm() {
 
       toast.success(`Welcome back, ${res.user.name}`);
 
-      if (res.user.user_type === "tenant_owner" || res.user.user_type === "manager" || res.user.user_type === "staff") {
-        toast.message("Salon workspace", {
-          description: `Opening ${destination.replace(/^\//, "")} — use office@salonapp.com for platform admin.`,
-        });
-      }
-
       router.replace(destination);
       return;
     } catch (err) {

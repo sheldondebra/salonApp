@@ -23,12 +23,19 @@ class TenantPaymentController extends Controller
             ->orderByDesc('created_at')
             ->paginate(min($request->integer('per_page', 20), 100));
 
+        $base = PaymentTransaction::query()->where('tenant_id', $tenantId);
+
         return response()->json([
             'data' => PaymentTransactionResource::collection($transactions),
             'meta' => [
                 'current_page' => $transactions->currentPage(),
                 'last_page' => $transactions->lastPage(),
                 'total' => $transactions->total(),
+                'summary' => [
+                    'paid' => (clone $base)->where('status', 'paid')->count(),
+                    'pending' => (clone $base)->where('status', 'pending')->count(),
+                    'failed' => (clone $base)->where('status', 'failed')->count(),
+                ],
             ],
         ]);
     }

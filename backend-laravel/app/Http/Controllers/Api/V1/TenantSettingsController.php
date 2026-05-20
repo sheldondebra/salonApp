@@ -28,7 +28,9 @@ class TenantSettingsController extends Controller
                 'multiple_locations' => $tenant->multipleLocationsEnabled(),
                 'business_type' => $tenant->businessTypeKey(),
                 'business_type_label' => $tenant->businessTypeLabel(),
+                'payments' => $tenant->paymentSettings(),
                 'notifications' => $tenant->notificationSettings(),
+                'inventory' => $tenant->inventorySettings(),
                 'sms_usage' => $this->sms->tenantUsage($tenant->id),
             ],
         ]);
@@ -65,6 +67,10 @@ class TenantSettingsController extends Controller
             'opening_hours.*.open' => ['nullable', 'string', 'max:8'],
             'opening_hours.*.close' => ['nullable', 'string', 'max:8'],
             'opening_hours.*.closed' => ['nullable', 'boolean'],
+            'payments' => ['nullable', 'array'],
+            'payments.enabled' => ['sometimes', 'boolean'],
+            'payments.deposit_percent' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'payments.require_full_payment' => ['sometimes', 'boolean'],
             'notifications' => ['nullable', 'array'],
             'notifications.email_enabled' => ['sometimes', 'boolean'],
             'notifications.sms_enabled' => ['sometimes', 'boolean'],
@@ -77,6 +83,8 @@ class TenantSettingsController extends Controller
             'notifications.payment_alert_email' => ['sometimes', 'boolean'],
             'notifications.payment_alert_sms' => ['sometimes', 'boolean'],
             'notifications.marketing_sms_enabled' => ['sometimes', 'boolean'],
+            'inventory' => ['nullable', 'array'],
+            'inventory.allow_negative_stock' => ['sometimes', 'boolean'],
         ]);
 
         $settings = $tenant->settings ?? [];
@@ -84,6 +92,13 @@ class TenantSettingsController extends Controller
         if (array_key_exists('multiple_locations', $validated)) {
             $settings['multiple_locations'] = (bool) $validated['multiple_locations'];
             unset($validated['multiple_locations']);
+        }
+
+        if (array_key_exists('payments', $validated)) {
+            $existing = is_array($settings['payments'] ?? null) ? $settings['payments'] : [];
+            $incoming = is_array($validated['payments']) ? $validated['payments'] : [];
+            $settings['payments'] = array_merge($existing, array_filter($incoming, fn ($v) => $v !== null));
+            unset($validated['payments']);
         }
 
         foreach (['business_description', 'whatsapp', 'social', 'opening_hours'] as $settingsKey) {
@@ -101,6 +116,16 @@ class TenantSettingsController extends Controller
                 $incoming
             );
             unset($validated['notifications']);
+        }
+
+        if (array_key_exists('inventory', $validated)) {
+            $defaults = config('tenant.default_settings.inventory', []);
+            $incoming = is_array($validated['inventory']) ? $validated['inventory'] : [];
+            $settings['inventory'] = array_merge(
+                is_array($settings['inventory'] ?? null) ? $settings['inventory'] : $defaults,
+                array_intersect_key($incoming, array_flip(array_keys($defaults)))
+            );
+            unset($validated['inventory']);
         }
 
         $tenant->update(array_merge(

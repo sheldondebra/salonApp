@@ -35,11 +35,12 @@ export function BookingPaymentStep({
 
   const currency = booking?.currency ?? "GHS";
   const requireFull = booking?.payments?.require_full_payment ?? false;
-  const purpose = requireFull ? "booking" : "deposit";
+  const [purpose, setPurpose] = useState<"booking" | "deposit">(requireFull ? "booking" : "deposit");
   const dueCents = appointment.amount_due_cents ?? 0;
-  const baseAmountCents = requireFull
-    ? dueCents
-    : Math.max(1, Math.round(dueCents * ((booking?.payments?.deposit_percent ?? 30) / 100)));
+  const baseAmountCents =
+    purpose === "booking"
+      ? dueCents
+      : Math.max(1, Math.round(dueCents * ((booking?.payments?.deposit_percent ?? 30) / 100)));
 
   const displayCents = payCents > 0 ? payCents : baseAmountCents;
   const clientOpts = getApiClientOptions(undefined, tenantSlug);
@@ -70,10 +71,42 @@ export function BookingPaymentStep({
     <div className="space-y-4 rounded-xl border border-border/60 bg-muted/30 p-4">
       <div className="flex items-center gap-2 text-sm font-medium">
         <CreditCard className="h-4 w-4 text-accent" />
-        {requireFull ? "Pay in full to confirm" : "Pay deposit to secure your slot"}
+        {purpose === "booking" ? "Pay in full to confirm" : "Pay deposit to secure your slot"}
       </div>
 
+      {!requireFull ? (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={purpose === "deposit" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => {
+              setPurpose("deposit");
+              setPayCents(0);
+              setCouponCode(undefined);
+            }}
+          >
+            Deposit
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={purpose === "booking" ? "default" : "outline"}
+            className="rounded-full"
+            onClick={() => {
+              setPurpose("booking");
+              setPayCents(0);
+              setCouponCode(undefined);
+            }}
+          >
+            Pay in full
+          </Button>
+        </div>
+      ) : null}
+
       <ApplyCouponField
+        key={`${purpose}-${baseAmountCents}`}
         validatePath={`${bookBase}/coupons/validate`}
         validateBody={{
           appointment_uuid: appointment.uuid,
@@ -106,7 +139,13 @@ export function BookingPaymentStep({
           </Button>
         ))}
       </div>
-      <Button type="button" className="w-full" disabled={loading} onClick={() => void pay()}>
+      <Button
+        type="button"
+        size="lg"
+        className="h-12 w-full rounded-xl text-base font-semibold"
+        disabled={loading}
+        onClick={() => void pay()}
+      >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (

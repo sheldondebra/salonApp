@@ -13,7 +13,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Building2, CreditCard, MessageSquare, UserCheck, Users } from "lucide-react";
+import { Building2, CreditCard, MessageSquare, Server, UserCheck, Users } from "lucide-react";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
@@ -31,6 +31,9 @@ type DashboardStats = {
   revenue_cents: number;
   sms_sent: number;
   sms_failed: number;
+  mnotify_balance?: number;
+  mnotify_status?: string;
+  mnotify_last_synced_at?: string | null;
 };
 
 type ChartPoint = { month: string; count?: number; revenue_cents?: number };
@@ -84,6 +87,14 @@ export function AdminOverview() {
       value: String(stats?.sms_sent ?? 0),
       icon: MessageSquare,
       hint: stats?.sms_failed ? `${stats.sms_failed} failed` : undefined,
+    },
+    {
+      title: "MNotify balance",
+      value: String(stats?.mnotify_balance ?? 0),
+      icon: Server,
+      hint: stats?.mnotify_last_synced_at
+        ? `Synced ${new Date(stats.mnotify_last_synced_at).toLocaleString()} · ${stats.mnotify_status ?? "—"}`
+        : stats?.mnotify_status ?? "Sync in Admin → SMS",
     },
   ];
 

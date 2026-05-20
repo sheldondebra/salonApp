@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   MapPin,
+  Package,
+  ShoppingCart,
   Scissors,
   Settings,
   UserCircle,
@@ -25,8 +28,11 @@ const navDefs = [
   { segment: "dashboard", label: "Dashboard", icon: LayoutDashboard, permission: Permissions.analytics.view },
   { segment: "reports", label: "Reports", icon: BarChart3, permission: Permissions.analytics.view },
   { segment: "appointments", label: "Appointments", icon: CalendarDays, permission: Permissions.bookings.view },
+  { segment: "payments", label: "Payments", icon: CreditCard, permission: Permissions.bookings.view },
   { segment: "branches", label: "Branches", icon: MapPin, permission: [Permissions.services.view, Permissions.settings.manage] },
   { segment: "services", label: "Services", icon: Scissors, permission: Permissions.services.view },
+  { segment: "inventory", label: "Inventory", icon: Package, permission: Permissions.inventory.view },
+  { segment: "pos", label: "POS", icon: ShoppingCart, permission: Permissions.pos.view },
   { segment: "staff", label: "Team", icon: UserCircle, permission: Permissions.staff.view },
   { segment: "clients", label: "Clients", icon: Users, permission: Permissions.clients.view },
   { segment: "settings", label: "Settings", icon: Settings, permission: Permissions.settings.manage },
@@ -97,7 +103,7 @@ export function WorkplaceShell({
       sidebarFooter={sidebarFooter}
       mobileTitle={tenantName}
       mobileSubtitle={tagline ?? undefined}
-      mainClassName="mx-auto max-w-7xl"
+      mainClassName="mx-auto w-full max-w-[100rem]"
       header={
         title ? <PageHeader title={title} description={description} /> : undefined
       }

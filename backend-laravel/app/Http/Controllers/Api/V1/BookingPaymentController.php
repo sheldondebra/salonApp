@@ -16,6 +16,7 @@ class BookingPaymentController extends Controller
 {
     public function checkout(
         Request $request,
+        string $tenantSlug,
         string $uuid,
         PaymentService $payments,
     ): JsonResponse {

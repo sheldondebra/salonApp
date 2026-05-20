@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, addDays } from "date-fns";
-import { CalendarHeart, MapPin, Repeat, Users } from "lucide-react";
+import { MapPin, Repeat, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import { bookingApiBase } from "@/lib/api/tenant-path";
+import { BookingCartSidebar, computeDepositCents } from "@/features/booking/booking-cart-sidebar";
 import { BookingConfirmSummary } from "@/features/booking/booking-confirm-summary";
 import { BookingDateStrip } from "@/features/booking/booking-date-strip";
 import { BookingServicePicker } from "@/features/booking/booking-service-picker";
@@ -60,13 +61,22 @@ function activeBookingSteps(
   return steps;
 }
 
+type BookingCatalog = {
+  locations: Location[];
+  services: Service[];
+  staff: StaffMember[];
+};
+
 type BookingWizardProps = {
   tenantSlug?: string | null;
   tenant?: Tenant | null;
   booking?: TenantBookingConfig | null;
+  /** When provided, skips duplicate catalog fetch (from public booking page). */
+  catalog?: BookingCatalog | null;
+  className?: string;
 };
 
-export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProps) {
+export function BookingWizard({ tenantSlug, tenant, booking, catalog, className }: BookingWizardProps) {
   const resolvedSlug = tenantSlug ?? tenant?.slug ?? "";
   const apiBase = bookingApiBase(resolvedSlug || null);
   const bookingClient = useMemo(
@@ -102,6 +112,20 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
   const [paymentSkipped, setPaymentSkipped] = useState(false);
 
   useEffect(() => {
+    if (catalog) {
+      setLocations(catalog.locations);
+      setServices(catalog.services);
+      setStaff(catalog.staff);
+      if (catalog.locations.length === 1) {
+        setLocationId(String(catalog.locations[0].id));
+      }
+      if (catalog.services.length === 0) {
+        toast.error("No bookable services yet. Add services in your salon dashboard.");
+      }
+      setLoading(false);
+      return;
+    }
+
     const client = bookingClient;
     Promise.all([
       client.get<{ data: Location[] }>(`${apiBase}/locations`),
@@ -128,7 +152,7 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
         )
       )
       .finally(() => setLoading(false));
-  }, [apiBase, bookingClient]);
+  }, [apiBase, bookingClient, catalog]);
 
   const selectedServices = useMemo(
     () => services.filter((s) => serviceIds.includes(s.id)),
@@ -215,7 +239,7 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
     } finally {
       setLoadingSlots(false);
     }
-  }, [apiBase, date, serviceIds, staffId, locationId]);
+  }, [apiBase, date, serviceIds, staffId, locationId, bookingClient]);
 
   useEffect(() => {
     if (stepIndex >= steps.length) {
@@ -225,9 +249,14 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
 
   useEffect(() => {
     if (currentStep === "schedule" && serviceIds.length > 0) {
+      setLoadingSlots(true);
       loadSlots();
     }
   }, [currentStep, loadSlots, serviceIds.length]);
+
+  useEffect(() => {
+    document.getElementById("booking-wizard")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [stepIndex]);
 
   function toggleService(id: number) {
     setServiceIds((prev) =>
@@ -304,8 +333,65 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
     }
   }
 
+  const paymentsEnabled = Boolean(booking?.payments?.enabled);
+  const { depositCents, requireFull } = computeDepositCents(totalPrice, booking);
+  const depositLabel = requireFull ? "Pay in full" : "Deposit due";
+
+  const primaryDisabled = useMemo(() => {
+    if (currentStep === "location") return !locationId;
+    if (currentStep === "services") return serviceIds.length === 0;
+    if (currentStep === "schedule") return !joinWaitlist && !time;
+    if (currentStep === "confirm") return submitting || !name.trim() || !email.trim();
+    return false;
+  }, [currentStep, locationId, serviceIds.length, joinWaitlist, time, submitting, name, email]);
+
+  const primaryLabel = useMemo(() => {
+    if (currentStep === "confirm") {
+      if (submitting) return "Saving…";
+      if (joinWaitlist) return "Join waitlist";
+      if (paymentsEnabled && totalPrice > 0) return "Confirm & continue to payment";
+      return "Confirm booking";
+    }
+    return "Continue";
+  }, [currentStep, submitting, joinWaitlist, paymentsEnabled, totalPrice]);
+
+  const handlePrimaryAction = () => {
+    if (currentStep === "confirm") {
+      void confirmBooking();
+    } else {
+      goNext();
+    }
+  };
+
+  const cartProps = {
+    services: selectedServices,
+    currency,
+    totalDuration,
+    totalPrice,
+    date,
+    timeLabel,
+    staffName,
+    locationSummary,
+    joinWaitlist,
+    paymentsEnabled,
+    depositCents,
+    depositLabel,
+    onRemoveService: (id: number) => toggleService(id),
+    onPrimaryAction: handlePrimaryAction,
+    onBack: stepIndex > 0 ? goBack : null,
+    primaryLabel,
+    primaryDisabled,
+    primaryLoading: submitting,
+    showBack: stepIndex > 0,
+  };
+
   if (loading) {
-    return <Skeleton className="mx-auto h-[32rem] max-w-lg rounded-2xl" />;
+    return (
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <Skeleton className="h-[32rem] rounded-2xl" />
+        <Skeleton className="hidden h-[28rem] rounded-2xl lg:block" />
+      </div>
+    );
   }
 
   function resetBooking() {
@@ -332,24 +418,45 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
     (primaryAppointment.amount_due_cents ?? 0) > 0 &&
     primaryAppointment.payment_status !== "paid";
 
-  if (done && needsOnlinePayment) {
+  if (done && needsOnlinePayment && primaryAppointment) {
+    const bookedServices = confirmedAppointments
+      .map((a) => a.service)
+      .filter((s): s is Service => Boolean(s));
+    const summaryServices = bookedServices.length > 0 ? bookedServices : selectedServices;
+
     return (
-      <Card className="mx-auto max-w-lg shadow-soft">
-        <CardHeader className="text-center">
-          <CardTitle>Almost done</CardTitle>
-          <CardDescription>Complete payment to secure your appointment.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <BookingPaymentStep
-            tenantSlug={tenantSlug ?? tenant?.slug ?? ""}
-            appointment={primaryAppointment}
-            booking={booking}
-            clientEmail={email}
-            clientName={name}
-            onSkip={() => setPaymentSkipped(true)}
-          />
-        </CardContent>
-      </Card>
+      <div className={cn("grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]", className)}>
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle>Complete payment</CardTitle>
+            <CardDescription>Secure your appointment with a quick online payment.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BookingPaymentStep
+              tenantSlug={tenantSlug ?? tenant?.slug ?? ""}
+              appointment={primaryAppointment}
+              booking={booking}
+              clientEmail={email}
+              clientName={name}
+              onSkip={() => setPaymentSkipped(true)}
+            />
+          </CardContent>
+        </Card>
+        <BookingCartSidebar
+          services={summaryServices}
+          currency={currency}
+          totalDuration={totalDuration}
+          totalPrice={totalPrice}
+          date={date}
+          timeLabel={timeLabel}
+          staffName={staffName}
+          locationSummary={locationSummary}
+          onRemoveService={() => {}}
+          onPrimaryAction={() => {}}
+          primaryLabel=""
+          readOnly
+        />
+      </div>
     );
   }
 
@@ -371,20 +478,16 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
   }
 
   return (
-    <Card className="mx-auto max-w-xl shadow-soft">
-      <CardHeader className="space-y-4 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/30 text-accent">
-          <CalendarHeart className="h-6 w-6" />
-        </div>
-        <div>
-          <CardTitle className="text-2xl">Book with {tenant?.name ?? "us"}</CardTitle>
-          <CardDescription className="mt-1">
-            Choose services, pick a time, and confirm in a few steps
-          </CardDescription>
-        </div>
+    <div className={cn("relative scroll-mt-24 pb-28 lg:pb-0", className)}>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+        <Card id="booking-wizard" className="w-full shadow-soft">
+      <CardHeader className="space-y-4 border-b border-border/50 pb-4">
         <BookingStepIndicator steps={stepItems} currentIndex={stepIndex} />
+        <p className="text-center text-sm text-muted-foreground">
+          Step {stepIndex + 1} of {steps.length}: {STEP_LABELS[currentStep]}
+        </p>
       </CardHeader>
-      <CardContent className="space-y-5 pb-28 sm:pb-6">
+      <CardContent className="space-y-5 pb-6">
         {currentStep === "location" && showLocationStep && (
           <>
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -398,27 +501,16 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
               placeholder="Choose a branch"
               searchPlaceholder="Search branches…"
             />
-            <NavButtons onBack={null} onNext={goNext} nextDisabled={!locationId} />
           </>
         )}
 
         {currentStep === "services" && (
-          <>
             <BookingServicePicker
               services={services}
               selectedIds={serviceIds}
               onToggle={toggleService}
               currency={currency}
-              totalDuration={totalDuration}
-              totalPrice={totalPrice}
             />
-            <StepNav
-              onBack={stepIndex > 0 ? goBack : null}
-              onNext={goNext}
-              nextDisabled={serviceIds.length === 0}
-              sticky
-            />
-          </>
         )}
 
         {currentStep === "staff" && (
@@ -434,7 +526,6 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
                 className="rounded-xl"
               />
             </div>
-            <StepNav onBack={goBack} onNext={goNext} sticky />
           </>
         )}
 
@@ -460,7 +551,6 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
               joinWaitlist={joinWaitlist}
               onJoinWaitlistChange={setJoinWaitlist}
             />
-            <StepNav onBack={goBack} onNext={goNext} nextDisabled={!joinWaitlist && !time} sticky />
           </>
         )}
 
@@ -520,7 +610,6 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
                 </div>
               ) : null}
             </div>
-            <StepNav onBack={goBack} onNext={goNext} sticky />
           </>
         )}
 
@@ -556,68 +645,15 @@ export function BookingWizard({ tenantSlug, tenant, booking }: BookingWizardProp
               email={email}
               phone={phone}
             />
-            <StepNav
-              onBack={goBack}
-              onNext={confirmBooking}
-              nextLabel={joinWaitlist ? "Join waitlist" : submitting ? "Saving…" : "Confirm & book"}
-              nextDisabled={submitting || !name.trim() || !email.trim()}
-              sticky
-            />
           </>
         )}
       </CardContent>
-    </Card>
-  );
-}
+        </Card>
 
-function StepNav({
-  sticky,
-  ...props
-}: {
-  onBack: (() => void) | null;
-  onNext: () => void;
-  nextDisabled?: boolean;
-  nextLabel?: string;
-  sticky?: boolean;
-}) {
-  return (
-    <div
-      className={
-        sticky
-          ? "fixed bottom-0 left-0 right-0 z-10 border-t border-border bg-background/95 p-4 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none"
-          : undefined
-      }
-    >
-      <div className="mx-auto max-w-xl">
-        <NavButtons {...props} />
+        <BookingCartSidebar {...cartProps} className="hidden lg:block" />
       </div>
-    </div>
-  );
-}
 
-function NavButtons({
-  onBack,
-  onNext,
-  nextDisabled,
-  nextLabel = "Continue",
-}: {
-  onBack: (() => void) | null;
-  onNext: () => void;
-  nextDisabled?: boolean;
-  nextLabel?: string;
-}) {
-  return (
-    <div className="flex gap-2 pt-2">
-      {onBack ? (
-        <Button type="button" variant="outline" className="flex-1" onClick={onBack}>
-          Back
-        </Button>
-      ) : (
-        <div className="flex-1" />
-      )}
-      <Button type="button" className="flex-1 rounded-xl" disabled={nextDisabled} onClick={onNext}>
-        {nextLabel}
-      </Button>
+      <BookingCartSidebar {...cartProps} compact className="lg:hidden" />
     </div>
   );
 }

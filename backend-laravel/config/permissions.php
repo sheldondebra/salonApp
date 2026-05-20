@@ -16,6 +16,8 @@ return [
         'staff',
         'clients',
         'analytics',
+        'inventory',
+        'pos',
     ],
 
     'actions' => [
@@ -53,6 +55,8 @@ return [
             'staff' => ['view', 'create', 'update', 'delete', 'export'],
             'clients' => ['view', 'create', 'update', 'delete', 'export'],
             'analytics' => ['view', 'export'],
+            'inventory' => ['view', 'create', 'update', 'delete', 'export'],
+            'pos' => ['view', 'create'],
             'billing' => ['manage'],
             'settings' => ['manage'],
         ],
@@ -63,12 +67,15 @@ return [
             'staff' => ['view', 'update'],
             'clients' => ['view', 'create', 'update', 'export'],
             'analytics' => ['view', 'export'],
+            'inventory' => ['view', 'create', 'update', 'export'],
+            'pos' => ['view', 'create'],
         ],
 
         RoleName::Staff->value => [
             'bookings' => ['view', 'create', 'update'],
             'services' => ['view'],
             'clients' => ['view'],
+            'pos' => ['view', 'create'],
         ],
 
         RoleName::Client->value => [

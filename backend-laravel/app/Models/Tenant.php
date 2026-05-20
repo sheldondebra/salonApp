@@ -232,6 +232,19 @@ class Tenant extends Model
         return array_merge(config('notifications.defaults'), $stored);
     }
 
+    /** @return array{allow_negative_stock: bool} */
+    public function inventorySettings(): array
+    {
+        $defaults = config('tenant.default_settings.inventory', ['allow_negative_stock' => false]);
+        $stored = $this->setting('inventory', []);
+
+        if (! is_array($stored)) {
+            $stored = [];
+        }
+
+        return array_merge($defaults, $stored);
+    }
+
     public function activeLocationsCount(): int
     {
         return $this->locations()->whereBool('is_active')->count();

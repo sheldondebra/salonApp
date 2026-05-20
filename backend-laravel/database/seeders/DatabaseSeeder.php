@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             RolesAndPermissionsSeeder::class,
             PlatformPlanSeeder::class,
             DemoSeeder::class,
+            SmsResellerSeeder::class,
         ]);
     }
 }

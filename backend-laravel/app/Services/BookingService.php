@@ -35,6 +35,7 @@ class BookingService
      *   client_email?: string,
      *   client_phone?: string|null,
      *   client_user_id?: int|null,
+     *   booked_via?: 'online'|'staff',
      * }  $data
      * @return array{group: BookingGroup, appointments: Collection<int, Appointment>}
      */
@@ -140,6 +141,7 @@ class BookingService
                         'starts_at' => $cursor,
                         'ends_at' => $endsAt,
                         'status' => 'pending',
+                        'booked_via' => $data['booked_via'] ?? 'staff',
                         'notes' => $partySize > 1
                             ? trim(($data['notes'] ?? '').' Group booking · '.$partySize.' guests')
                             : ($data['notes'] ?? null),

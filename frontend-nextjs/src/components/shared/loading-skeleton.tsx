@@ -39,10 +39,18 @@ export function CardBlockSkeleton({ className }: { className?: string }) {
 /** Full dashboard loading state. */
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-8">
-      <PageHeaderSkeleton />
-      <MetricGridSkeleton />
-      <CardBlockSkeleton />
+    <div className="w-full space-y-8">
+      <Skeleton className="h-36 w-full rounded-2xl" />
+      <MetricGridSkeleton count={6} className="grid-cols-2 md:grid-cols-3 2xl:grid-cols-6" />
+      <div className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
+        <CardBlockSkeleton className="min-h-[360px]" />
+        <CardBlockSkeleton className="min-h-[360px]" />
+      </div>
+      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3">
+        <CardBlockSkeleton className="h-64" />
+        <CardBlockSkeleton className="h-64" />
+        <CardBlockSkeleton className="h-64" />
+      </div>
     </div>
   );
 }

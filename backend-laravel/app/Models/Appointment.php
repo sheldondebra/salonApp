@@ -22,6 +22,7 @@ class Appointment extends Model
         'starts_at',
         'ends_at',
         'status',
+        'booked_via',
         'payment_status',
         'amount_due_cents',
         'deposit_paid_cents',

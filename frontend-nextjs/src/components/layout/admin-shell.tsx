@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import {
+  AlertTriangle,
   BarChart3,
   Building2,
   ClipboardList,
@@ -35,6 +36,7 @@ const navDefs: (ShellNavItem & { permission: string })[] = [
   { href: "/admin/plans", label: "Plans", icon: CreditCard, permission: Permissions.billing.manage },
   { href: "/admin/coupons", label: "Coupons", icon: Tag, permission: Permissions.billing.manage },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, permission: Permissions.billing.manage },
+  { href: "/admin/payment-failures", label: "Payment failures", icon: AlertTriangle, permission: Permissions.billing.manage },
   { href: "/admin/unpaid", label: "Unpaid signups", icon: UserX, permission: Permissions.billing.manage },
   { href: "/admin/domains", label: "Domains", icon: Globe, permission: Permissions.tenants.view },
   { href: "/admin/sms", label: "SMS", icon: MessageSquare, permission: Permissions.billing.manage },

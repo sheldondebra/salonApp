@@ -1,5 +1,6 @@
 "use client";
 
+import { format, subDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,8 +50,30 @@ export function ReportsFilters({
 }: ReportsFiltersProps) {
   const patch = (partial: Partial<ReportFiltersState>) => onChange({ ...value, ...partial });
 
+  function setPreset(days: number) {
+    const to = new Date();
+    const from = subDays(to, days);
+    onChange({
+      ...value,
+      from: format(from, "yyyy-MM-dd"),
+      to: format(to, "yyyy-MM-dd"),
+    });
+  }
+
   return (
-    <div className="grid gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-soft md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPreset(6)}>
+          Last 7 days
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPreset(29)}>
+          Last 30 days
+        </Button>
+        <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => setPreset(89)}>
+          Last 90 days
+        </Button>
+      </div>
+      <div className="grid gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-soft md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
       <div className="space-y-1.5">
         <Label className="text-xs text-muted-foreground">From</Label>
         <Input
@@ -112,6 +135,7 @@ export function ReportsFilters({
           {loading ? "Loading…" : "Apply filters"}
         </Button>
       </div>
+    </div>
     </div>
   );
 }

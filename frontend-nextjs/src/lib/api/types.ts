@@ -49,6 +49,13 @@ export type TenantBookingConfig = {
   currency?: string;
 };
 
+export type TenantDomain = {
+  domain: string;
+  type?: string;
+  is_primary?: boolean;
+  is_verified?: boolean;
+};
+
 export type Tenant = {
   id: number;
   uuid: string;
@@ -61,6 +68,7 @@ export type Tenant = {
   business_type?: string | null;
   business_type_label?: string | null;
   branding: TenantBranding;
+  domains?: TenantDomain[];
 };
 
 export type User = {
@@ -137,6 +145,80 @@ export type Service = {
   service_category_id?: number | null;
 };
 
+export type ProductCategory = {
+  id: number;
+  name: string;
+  sort_order: number;
+  is_active: boolean;
+};
+
+export type Supplier = {
+  id: number;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  is_active: boolean;
+};
+
+export type ProductStockRow = {
+  location_id: number;
+  location_name: string | null;
+  quantity: number;
+};
+
+export type Product = {
+  id: number;
+  name: string;
+  sku: string | null;
+  barcode: string | null;
+  description: string | null;
+  image_url: string | null;
+  cost_cents: number;
+  retail_cents: number;
+  low_stock_threshold: number;
+  is_active: boolean;
+  total_quantity: number;
+  is_low_stock: boolean;
+  category?: { id: number; name: string } | null;
+  supplier?: { id: number; name: string } | null;
+  stocks?: ProductStockRow[];
+};
+
+export type StockMovement = {
+  id: number;
+  type: string;
+  quantity_change: number;
+  quantity_before: number;
+  quantity_after: number;
+  reason: string | null;
+  notes: string | null;
+  created_at: string;
+  product?: { id: number; name: string; sku: string | null };
+  location?: { id: number; name: string };
+  user?: { id: number; name: string };
+};
+
+export type InventoryDashboard = {
+  summary: {
+    total_products: number;
+    active_products: number;
+    low_stock_count: number;
+    total_units: number;
+    stock_value_cents: number;
+  };
+  low_stock: {
+    id: number;
+    name: string;
+    sku: string | null;
+    quantity: number;
+    low_stock_threshold: number;
+    category?: string | null;
+  }[];
+  recent_movements: StockMovement[];
+};
+
 export type StaffMember = {
   id: number;
   uuid: string;
@@ -192,6 +274,7 @@ export type Appointment = {
   starts_at: string;
   ends_at: string;
   status: AppointmentStatus | string;
+  booked_via?: "online" | "staff";
   payment_status?: string;
   amount_due_cents?: number;
   deposit_paid_cents?: number;
@@ -201,6 +284,21 @@ export type Appointment = {
   staff_member?: { id: number; display_name: string; title: string | null };
   client?: Pick<User, "id" | "name" | "email" | "phone">;
   location?: { id: number; name: string; label?: string; city?: string | null };
+};
+
+export type PaymentTransaction = {
+  uuid: string;
+  provider: string;
+  purpose: string;
+  provider_reference: string;
+  amount_cents: number;
+  currency: string;
+  status: string;
+  failure_reason?: string | null;
+  paid_at?: string | null;
+  created_at?: string | null;
+  appointment?: Appointment;
+  client?: { name: string; email: string };
 };
 
 export type AppointmentsListMeta = {
@@ -220,12 +318,63 @@ export type DashboardStats = {
   revenue_month_cents: number;
   pending_bookings: number;
   completed_month: number;
+  cancelled_month: number;
+  self_bookings_month: number;
   new_customers_month: number;
 };
 
-export type RevenueChartPoint = {
+export type GrowthChartPoint = {
   date: string;
   label: string;
   revenue_cents: number;
   bookings: number;
+  completed: number;
+  cancelled: number;
+  self_bookings: number;
+};
+
+/** @deprecated Use GrowthChartPoint */
+export type RevenueChartPoint = GrowthChartPoint;
+
+export type DashboardBookingsBreakdown = {
+  cancelled: Appointment[];
+  completed: Appointment[];
+  self_bookings: Appointment[];
+};
+
+export type SaleItem = {
+  id: number;
+  item_type: "service" | "product";
+  service_id: number | null;
+  product_id: number | null;
+  name: string;
+  quantity: number;
+  unit_price_cents: number;
+  line_total_cents: number;
+};
+
+export type Sale = {
+  id: number;
+  uuid: string;
+  sale_number: string | null;
+  status: string;
+  location_id: number;
+  client_user_id: number | null;
+  appointment_id: number | null;
+  subtotal_cents: number;
+  discount_cents: number;
+  tax_cents: number;
+  service_charge_cents: number;
+  tip_cents: number;
+  total_cents: number;
+  currency: string;
+  payment_method: string;
+  coupon_code: string | null;
+  notes: string | null;
+  completed_at: string | null;
+  created_at: string;
+  client?: { id: number; name: string; email?: string; phone?: string | null } | null;
+  location?: { id: number; name: string } | null;
+  appointment?: { id: number; uuid: string } | null;
+  items?: SaleItem[];
 };

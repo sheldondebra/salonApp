@@ -39,6 +39,8 @@ return [
         'reports',
         'coupons',
         'payments',
+        'inventory',
+        'pos',
         'onboarding',
     ],
 
@@ -74,6 +76,9 @@ return [
             'enabled' => false,
             'deposit_percent' => 30,
             'require_full_payment' => false,
+        ],
+        'inventory' => [
+            'allow_negative_stock' => false,
         ],
     ],
 

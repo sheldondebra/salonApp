@@ -12,12 +12,12 @@ class ServicePolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->can($user, 'services', 'view');
+        return $this->can($user, 'services', 'view') || $this->can($user, 'pos', 'view');
     }
 
     public function view(User $user, Service $service): bool
     {
-        return $this->can($user, 'services', 'view');
+        return $this->viewAny($user);
     }
 
     public function create(User $user): bool

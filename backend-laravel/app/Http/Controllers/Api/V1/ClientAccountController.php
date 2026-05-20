@@ -10,7 +10,9 @@ use App\Models\Appointment;
 use App\Models\ClientFavorite;
 use App\Models\Service;
 use App\Models\StaffMember;
+use App\Services\BookingService;
 use App\Services\LoyaltyService;
+use App\Services\NotificationService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +22,26 @@ class ClientAccountController extends Controller
 {
     public function __construct(
         protected LoyaltyService $loyalty,
+        protected BookingService $booking,
+        protected NotificationService $notifications,
     ) {}
+
+    public function tenants(Request $request): JsonResponse
+    {
+        $tenants = $request->user()
+            ->tenants()
+            ->orderBy('name')
+            ->get(['tenants.id', 'tenants.name', 'tenants.slug', 'tenants.currency']);
+
+        return response()->json([
+            'data' => $tenants->map(fn ($tenant) => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+                'currency' => $tenant->currency,
+            ])->values(),
+        ]);
+    }
 
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
@@ -53,6 +74,69 @@ class ClientAccountController extends Controller
                 'total' => $appointments->total(),
             ],
         ]);
+    }
+
+    public function showBooking(Request $request, string $tenantSlug, string $uuid): JsonResponse
+    {
+        $appointment = $this->clientAppointment($request, $uuid);
+
+        return response()->json(['data' => new AppointmentResource($appointment)]);
+    }
+
+    public function updateBooking(
+        Request $request,
+        string $tenantSlug,
+        string $uuid,
+    ): JsonResponse {
+        $appointment = $this->clientAppointment($request, $uuid);
+
+        if (in_array($appointment->status, ['cancelled', 'completed', 'no_show'], true)) {
+            return response()->json(['message' => 'This appointment cannot be changed.'], 422);
+        }
+
+        $validated = $request->validate([
+            'status' => ['sometimes', 'string', Rule::in(['cancelled'])],
+            'starts_at' => ['sometimes', 'date', 'after:now'],
+            'staff_member_id' => ['sometimes', 'nullable', 'integer', 'exists:staff_members,id'],
+            'location_id' => ['sometimes', 'nullable', 'integer', 'exists:locations,id'],
+        ]);
+
+        $rescheduled = isset($validated['starts_at']);
+
+        if ($rescheduled) {
+            $appointment = $this->booking->rescheduleAppointment($appointment, [
+                'starts_at' => $validated['starts_at'],
+                'staff_member_id' => $validated['staff_member_id'] ?? $appointment->staff_member_id,
+                'location_id' => $validated['location_id'] ?? $appointment->location_id,
+            ]);
+            unset($validated['starts_at'], $validated['staff_member_id'], $validated['location_id']);
+        }
+
+        $cancelled = ($validated['status'] ?? null) === 'cancelled';
+
+        if ($validated !== []) {
+            $appointment->update($validated);
+            $appointment = $appointment->fresh(['service', 'staffMember', 'client', 'location']);
+        }
+
+        if ($cancelled) {
+            $this->notifications->bookingCancelled($appointment);
+        }
+
+        return response()->json([
+            'data' => new AppointmentResource($appointment),
+            'message' => $rescheduled ? 'Appointment rescheduled' : ($cancelled ? 'Appointment cancelled' : 'Appointment updated'),
+        ]);
+    }
+
+    protected function clientAppointment(Request $request, string $uuid): Appointment
+    {
+        return Appointment::withoutGlobalScope('tenant')
+            ->where('tenant_id', TenantContext::id())
+            ->where('client_user_id', $request->user()->id)
+            ->where('uuid', $uuid)
+            ->with(['service', 'staffMember', 'location'])
+            ->firstOrFail();
     }
 
     public function favorites(Request $request): JsonResponse

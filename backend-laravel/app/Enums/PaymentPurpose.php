@@ -7,4 +7,5 @@ enum PaymentPurpose: string
     case Subscription = 'subscription';
     case Booking = 'booking';
     case Deposit = 'deposit';
+    case Pos = 'pos';
 }

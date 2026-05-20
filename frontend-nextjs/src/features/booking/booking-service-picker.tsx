@@ -13,8 +13,6 @@ type BookingServicePickerProps = {
   selectedIds: number[];
   onToggle: (id: number) => void;
   currency?: string;
-  totalDuration: number;
-  totalPrice: number;
 };
 
 export function BookingServicePicker({
@@ -22,8 +20,6 @@ export function BookingServicePicker({
   selectedIds,
   onToggle,
   currency = "USD",
-  totalDuration,
-  totalPrice,
 }: BookingServicePickerProps) {
   const [query, setQuery] = useState("");
 
@@ -84,11 +80,6 @@ export function BookingServicePicker({
           })
         )}
       </div>
-      {selectedIds.length > 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Total: {totalDuration} min · {formatMoney(totalPrice, currency)}
-        </p>
-      ) : null}
     </div>
   );
 }

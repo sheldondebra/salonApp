@@ -2,28 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { format } from "date-fns";
 import {
+  Ban,
   Calendar,
+  CheckCircle2,
   Clock,
   DollarSign,
-  TrendingUp,
-  UserPlus,
+  Smartphone,
 } from "lucide-react";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/client";
 import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
@@ -40,14 +31,31 @@ import { getApiClientOptions } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/format/money";
 import { useAbilities } from "@/hooks/use-abilities";
 import { Permissions } from "@/lib/auth/permissions";
-import type { Appointment, DashboardStats, RevenueChartPoint } from "@/lib/api/types";
+import type {
+  Appointment,
+  DashboardBookingsBreakdown,
+  DashboardStats,
+  GrowthChartPoint,
+} from "@/lib/api/types";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { DashboardModuleNav } from "./dashboard-module-nav";
+import { DashboardGrowthChart } from "./dashboard-growth-chart";
+import { DashboardBookingsPanels } from "./dashboard-bookings-panels";
+import { cn } from "@/lib/utils";
 
 type DashboardViewProps = {
   tenantSlug: string;
   currency?: string;
 };
+
+type ChartRange = 7 | 30;
+
+function unwrapAppointments(
+  payload: Appointment[] | { data?: Appointment[] } | undefined
+): Appointment[] {
+  if (!payload) return [];
+  return Array.isArray(payload) ? payload : (payload.data ?? []);
+}
 
 function statusVariant(status: string): "default" | "secondary" | "success" | "warning" | "outline" {
   if (status === "completed" || status === "confirmed") return "success";
@@ -59,9 +67,11 @@ function statusVariant(status: string): "default" | "secondary" | "success" | "w
 export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewProps) {
   const { can } = useAbilities(tenantSlug);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [chart, setChart] = useState<RevenueChartPoint[]>([]);
+  const [chart, setChart] = useState<GrowthChartPoint[]>([]);
+  const [breakdown, setBreakdown] = useState<DashboardBookingsBreakdown | null>(null);
   const [upcoming, setUpcoming] = useState<Appointment[]>([]);
   const [recent, setRecent] = useState<Appointment[]>([]);
+  const [chartRange, setChartRange] = useState<ChartRange>(30);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,13 +81,21 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
     const client = createApiClient(getApiClientOptions());
     return Promise.all([
       client.get<{ stats: DashboardStats }>(`/${tenantSlug}/dashboard/stats`),
-      client.get<{ data: RevenueChartPoint[] }>(`/${tenantSlug}/dashboard/revenue-chart`),
+      client.get<{ data: GrowthChartPoint[] }>(
+        `/${tenantSlug}/dashboard/growth-chart?days=${chartRange}`
+      ),
+      client.get<DashboardBookingsBreakdown>(`/${tenantSlug}/dashboard/bookings-breakdown`),
       client.get<{ data: Appointment[] }>(`/${tenantSlug}/dashboard/upcoming`),
       client.get<{ data: Appointment[] }>(`/${tenantSlug}/dashboard/recent`),
     ])
-      .then(([statsRes, chartRes, upcomingRes, recentRes]) => {
+      .then(([statsRes, chartRes, breakdownRes, upcomingRes, recentRes]) => {
         setStats(statsRes.stats);
         setChart(chartRes.data ?? []);
+        setBreakdown({
+          cancelled: unwrapAppointments(breakdownRes.cancelled),
+          completed: unwrapAppointments(breakdownRes.completed),
+          self_bookings: unwrapAppointments(breakdownRes.self_bookings),
+        });
         setUpcoming(upcomingRes.data ?? []);
         setRecent(recentRes.data ?? []);
       })
@@ -85,7 +103,7 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
         setError(err instanceof ApiError ? err.message : "Could not load dashboard");
       })
       .finally(() => setLoading(false));
-  }, [tenantSlug]);
+  }, [tenantSlug, chartRange]);
 
   useEffect(() => {
     load();
@@ -102,37 +120,119 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
   const base = `/${tenantSlug}`;
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">Quick actions</p>
-        <DashboardQuickActions tenantSlug={tenantSlug} can={can} />
-      </div>
+    <div className="w-full max-w-none space-y-8">
+      <section className="relative w-full overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 px-6 py-8 shadow-soft sm:px-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Salon overview</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {formatMoney(stats?.revenue_month_cents ?? 0, currency)}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">Revenue this month</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {([7, 30] as ChartRange[]).map((days) => (
+              <Button
+                key={days}
+                type="button"
+                size="sm"
+                variant={chartRange === days ? "default" : "outline"}
+                className="rounded-full"
+                onClick={() => setChartRange(days)}
+              >
+                {days}d
+              </Button>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="w-full space-y-4">
+        <h3 className="text-sm font-medium text-muted-foreground">Quick actions</h3>
+        <DashboardQuickActions tenantSlug={tenantSlug} can={can} />
+      </section>
+
+      <section className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6 items-stretch">
         <MetricCard
           title="Today's bookings"
           value={String(stats?.appointments_today ?? 0)}
           icon={Calendar}
         />
         <MetricCard
-          title="Revenue this month"
+          title="Revenue"
           value={formatMoney(stats?.revenue_month_cents ?? 0, currency)}
           icon={DollarSign}
+          hint="This month"
         />
         <MetricCard
-          title="New customers"
-          value={String(stats?.new_customers_month ?? 0)}
-          icon={UserPlus}
-          hint="Joined this month"
+          title="Completed"
+          value={String(stats?.completed_month ?? 0)}
+          icon={CheckCircle2}
+          hint="This month"
+          className="border-emerald-500/20"
         />
         <MetricCard
-          title="Pending appointments"
+          title="Cancelled"
+          value={String(stats?.cancelled_month ?? 0)}
+          icon={Ban}
+          hint="This month"
+          className="border-red-500/20"
+        />
+        <MetricCard
+          title="Self bookings"
+          value={String(stats?.self_bookings_month ?? 0)}
+          icon={Smartphone}
+          hint="Online this month"
+          className="border-violet-500/20"
+        />
+        <MetricCard
+          title="Pending"
           value={String(stats?.pending_bookings ?? 0)}
           icon={Clock}
         />
-      </div>
+      </section>
 
-      <Card className="rounded-2xl border-border/60 shadow-soft">
+      <section className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2 items-stretch">
+        <div className="min-w-0">
+          <DashboardGrowthChart
+            title="Revenue growth"
+            subtitle={`Daily revenue · last ${chartRange} days`}
+            data={chart}
+            currency={currency}
+            mode="revenue"
+            className="min-h-[360px] w-full"
+          />
+        </div>
+        <div className="min-w-0">
+          <DashboardGrowthChart
+            title="Business growth"
+            subtitle={`Bookings volume & outcomes · last ${chartRange} days`}
+            data={chart}
+            currency={currency}
+            mode="business"
+            className="min-h-[360px] w-full"
+          />
+        </div>
+      </section>
+
+      <section className="w-full">
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold tracking-tight">Booking breakdown</h3>
+            <p className="text-sm text-muted-foreground">
+              Cancelled, completed, and client self-service bookings
+            </p>
+          </div>
+        </div>
+        <DashboardBookingsPanels
+          cancelled={breakdown?.cancelled ?? []}
+          completed={breakdown?.completed ?? []}
+          self_bookings={breakdown?.self_bookings ?? []}
+        />
+      </section>
+
+      <Card className="w-full rounded-2xl border-border/60 shadow-soft">
         <CardHeader className="pb-2">
           <CardTitle className="text-base font-medium text-muted-foreground">Jump to</CardTitle>
         </CardHeader>
@@ -141,54 +241,8 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-border/60 shadow-soft">
-        <CardHeader>
-          <CardTitle>Revenue (7 days)</CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
-          {chart.length === 0 ? (
-            <EmptyState
-              icon={TrendingUp}
-              title="No revenue data yet"
-              description="Completed and confirmed bookings will appear here."
-            />
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chart}>
-                <defs>
-                  <linearGradient id="tenantRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tickFormatter={(v) => formatMoney(Number(v), currency)}
-                  tick={{ fontSize: 12 }}
-                  width={72}
-                />
-                <Tooltip
-                  formatter={(value) => [formatMoney(Number(value ?? 0), currency), "Revenue"]}
-                  labelFormatter={(_, payload) => {
-                    const date = payload?.[0]?.payload?.date as string | undefined;
-                    return date ? format(new Date(date), "MMM d, yyyy") : "";
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue_cents"
-                  stroke="hsl(var(--accent))"
-                  fill="url(#tenantRevenue)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="rounded-2xl border-border/60 shadow-soft">
+      <section className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2 items-stretch">
+        <Card className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent bookings</CardTitle>
             {can(Permissions.bookings.view) ? (
@@ -197,11 +251,11 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
               </Button>
             ) : null}
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0 flex-1 overflow-x-auto">
             {recent.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No past bookings yet.</p>
             ) : (
-              <Table>
+              <Table className="w-full min-w-[32rem]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Service</TableHead>
@@ -235,7 +289,7 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-border/60 shadow-soft">
+        <Card className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming appointments</CardTitle>
             {can(Permissions.bookings.view) ? (
@@ -253,7 +307,9 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
               upcoming.map((apt) => (
                 <div
                   key={apt.uuid}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
+                  )}
                 >
                   <div>
                     <p className="font-medium">{apt.service?.name ?? "Service"}</p>
@@ -272,7 +328,7 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
             )}
           </CardContent>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

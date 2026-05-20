@@ -76,6 +76,35 @@ Add to `/etc/hosts`:
 127.0.0.1 workplace.localhost
 ```
 
+## Notifications (MNotify SMS + email)
+
+SMS and transactional email are queued. Run a queue worker alongside the API:
+
+```bash
+cd backend-laravel
+php artisan queue:work
+```
+
+Optional MNotify keys in `backend-laravel/.env` (without them, SMS is logged in demo mode):
+
+```env
+MNOTIFY_API_KEY=
+MNOTIFY_SENDER_ID=SalonApp
+MNOTIFY_BASE_URL=https://api.mnotify.com/api
+MNOTIFY_BALANCE_URL=https://apps.mnotify.net/smsapi/balance
+```
+
+Booking reminders run hourly via the scheduler (`bookings:send-reminders`). For local cron:
+
+```bash
+php artisan schedule:work
+```
+
+- **Tenant:** Settings → Notifications (SMS wallet balance, ledger, toggles, delivery log)
+- **Platform:** Admin → SMS → **Reseller hub** — **Sync from MNotify** updates master balance (API key in `.env` only); sync log shows failures
+- **Dashboard:** Platform overview shows last synced MNotify balance
+- **Demo credits:** `php artisan db:seed --class=SmsResellerSeeder` (500 credits per tenant after migration)
+
 ## Run dev servers
 
 ```bash
@@ -84,10 +113,30 @@ cd backend-laravel && php artisan serve
 
 # Terminal 2
 cd frontend-nextjs && npm run dev
+
+# Terminal 3 (queues)
+cd backend-laravel && php artisan queue:work
 ```
+
+## Reports
+
+- **Salon workspace:** `/{tenant-slug}/reports` (requires analytics permission)
+- **Platform admin:** `/admin/reports`
+
+Use date presets and filters, then **Apply filters**. Data is tenant-scoped on the salon side; admin sees platform-wide MRR, tenant growth, and SMS usage.
 
 ## Health checks
 
 - API: `GET http://localhost:8000/up`
 - API v1: `GET http://localhost:8000/api/v1/health`
 - Web: `http://localhost:3000`
+
+## Demo logins (after `migrate:fresh --seed`)
+
+| Portal | URL | Email | Password |
+|--------|-----|-------|----------|
+| General Office | http://localhost:3000/admin | `office@salonapp.com` | `password` |
+| Super Admin | http://localhost:3000/admin | `admin@salonapp.com` | `password` |
+| Salon workspace | http://localhost:3000/luxe-bloom/dashboard | `owner@luxebloom.demo` | `password` |
+
+Salon owner accounts (e.g. your own signup) cannot use General Office — that area is platform staff only.

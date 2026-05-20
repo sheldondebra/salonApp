@@ -24,6 +24,7 @@ import { getApiClientOptions } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/format/money";
 import { ReportsFilters } from "./reports-filters";
 import { ChartCard } from "./chart-card";
+import { hasNumericActivity, hasRows } from "./chart-utils";
 import { defaultReportFilters, reportFiltersToQuery } from "./report-query";
 import type { AdminReportPayload, ReportFiltersState } from "./types";
 
@@ -60,6 +61,7 @@ export function AdminReportsView() {
   }
 
   const summary = data?.summary;
+  const chartFade = loading && data ? "pointer-events-none opacity-60 transition-opacity" : "";
 
   return (
     <div className="space-y-6">
@@ -94,8 +96,11 @@ export function AdminReportsView() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Tenant growth">
+      <div className={`grid gap-6 lg:grid-cols-2 ${chartFade}`}>
+        <ChartCard
+          title="Tenant growth"
+          isEmpty={!hasNumericActivity(data?.tenant_growth, ["count"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.tenant_growth ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -107,7 +112,10 @@ export function AdminReportsView() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Subscription MRR">
+        <ChartCard
+          title="Subscription MRR"
+          isEmpty={!hasNumericActivity(data?.subscription_mrr, ["mrr_cents"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data?.subscription_mrr ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -119,7 +127,10 @@ export function AdminReportsView() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Subscription revenue (daily)">
+        <ChartCard
+          title="Subscription revenue (daily)"
+          isEmpty={!hasNumericActivity(data?.subscription_revenue, ["revenue_cents"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data?.subscription_revenue ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -131,7 +142,10 @@ export function AdminReportsView() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Platform SMS usage">
+        <ChartCard
+          title="Platform SMS usage"
+          isEmpty={!hasNumericActivity(data?.sms_usage, ["sent", "failed"])}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data?.sms_usage ?? []}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
@@ -146,17 +160,23 @@ export function AdminReportsView() {
         </ChartCard>
       </div>
 
-      <ChartCard title="Top salons by bookings" heightClass="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data?.bookings_by_tenant ?? []} layout="vertical" margin={{ left: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Bar dataKey="bookings" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      <div className={chartFade}>
+        <ChartCard
+          title="Top salons by bookings"
+          heightClass="h-80"
+          isEmpty={!hasRows(data?.bookings_by_tenant)}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data?.bookings_by_tenant ?? []} layout="vertical" margin={{ left: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Bar dataKey="bookings" fill="hsl(var(--accent))" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
     </div>
   );
 }

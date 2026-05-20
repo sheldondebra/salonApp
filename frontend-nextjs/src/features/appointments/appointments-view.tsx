@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import {
   CalendarDays,
@@ -14,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { AppointmentCard } from "@/features/appointments/appointment-card";
 import { AppointmentReschedulePanel } from "@/features/appointments/appointment-reschedule-panel";
+import { StaffBookingPanel } from "@/features/appointments/staff-booking-panel";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import { useAbilities } from "@/hooks/use-abilities";
+import { useTenant } from "@/hooks/use-tenant";
 import { Permissions } from "@/lib/auth/permissions";
 import type {
   Appointment,
@@ -62,8 +63,11 @@ type AppointmentsViewProps = {
 };
 
 export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsViewProps) {
+  const { booking } = useTenant(tenantSlug);
   const { can } = useAbilities(tenantSlug);
+  const canCreate = can(Permissions.bookings.create);
   const canUpdate = can(Permissions.bookings.update);
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -170,12 +174,12 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
             Refresh
           </Button>
-          <Button asChild size="sm" className="gap-2">
-            <Link href={`/${tenantSlug}/book`}>
+          {canCreate ? (
+            <Button type="button" size="sm" className="gap-2" onClick={() => setBookingOpen(true)}>
               <Plus className="h-4 w-4" />
               New booking
-            </Link>
-          </Button>
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -239,6 +243,16 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
           </Select>
         </div>
       </div>
+
+      {bookingOpen && canCreate ? (
+        <StaffBookingPanel
+          tenantSlug={tenantSlug}
+          currency={currency}
+          booking={booking}
+          onClose={() => setBookingOpen(false)}
+          onBooked={() => load(true)}
+        />
+      ) : null}
 
       {loading ? (
         <div className="space-y-3">

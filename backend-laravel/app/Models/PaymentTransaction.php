@@ -15,6 +15,7 @@ class PaymentTransaction extends Model
     protected $fillable = [
         'tenant_id',
         'appointment_id',
+        'sale_id',
         'user_id',
         'coupon_id',
         'uuid',
@@ -52,6 +53,11 @@ class PaymentTransaction extends Model
     public function appointment(): BelongsTo
     {
         return $this->belongsTo(Appointment::class);
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class);
     }
 
     public function user(): BelongsTo

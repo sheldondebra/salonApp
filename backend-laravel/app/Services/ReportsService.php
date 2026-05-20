@@ -97,26 +97,26 @@ class ReportsService
     {
         $query = Appointment::query()
             ->withoutGlobalScope('tenant')
-            ->whereBetween('starts_at', [$filters->from, $filters->to]);
+            ->whereBetween('appointments.starts_at', [$filters->from, $filters->to]);
 
         if ($filters->tenantId) {
-            $query->where('tenant_id', $filters->tenantId);
+            $query->where('appointments.tenant_id', $filters->tenantId);
         }
 
         if ($filters->locationId) {
-            $query->where('location_id', $filters->locationId);
+            $query->where('appointments.location_id', $filters->locationId);
         }
 
         if ($filters->staffMemberId) {
-            $query->where('staff_member_id', $filters->staffMemberId);
+            $query->where('appointments.staff_member_id', $filters->staffMemberId);
         }
 
         if ($filters->serviceId) {
-            $query->where('service_id', $filters->serviceId);
+            $query->where('appointments.service_id', $filters->serviceId);
         }
 
         if ($filters->status) {
-            $query->where('status', $filters->status);
+            $query->where('appointments.status', $filters->status);
         }
 
         return $query;

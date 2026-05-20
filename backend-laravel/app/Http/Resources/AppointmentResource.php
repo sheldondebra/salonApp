@@ -15,6 +15,7 @@ class AppointmentResource extends JsonResource
             'starts_at' => $this->starts_at?->toIso8601String(),
             'ends_at' => $this->ends_at?->toIso8601String(),
             'status' => $this->status,
+            'booked_via' => $this->booked_via ?? 'staff',
             'payment_status' => $this->payment_status ?? 'unpaid',
             'amount_due_cents' => (int) ($this->amount_due_cents ?? 0),
             'deposit_paid_cents' => (int) ($this->deposit_paid_cents ?? 0),

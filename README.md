@@ -8,7 +8,7 @@ Production-ready monorepo foundation for a Fresha-style beauty booking platform.
 salonapp/
 ├── backend-laravel/     # Laravel 11 REST API (Sanctum, RBAC, multi-tenant)
 ├── frontend-nextjs/       # Next.js 14 web app (portals, Shadcn, Tailwind)
-├── mobile-reactnative/  # React Native shell (future mobile clients)
+├── mobile-reactnative/  # Expo React Native app (Batch 36 foundation)
 ├── docs/                # Architecture & setup guides
 └── docker-compose.yml   # Local PostgreSQL + Redis
 ```
@@ -143,13 +143,16 @@ FACEBOOK_CLIENT_SECRET=
 
 Redirect URIs must match `APP_URL/api/v1/auth/social/{provider}/callback`. Apple Sign-In requires additional setup beyond Socialite defaults.
 
-### 4. Mobile (placeholder)
+### 4. Mobile (Expo)
 
 ```bash
 cd mobile-reactnative
+cp .env.example .env
 npm install
-# Full Expo/RN bootstrap documented in mobile-reactnative/README.md
+npm start
 ```
+
+See `mobile-reactnative/README.md` for LAN API URL setup and role-based portals.
 
 ## Feature overview
 

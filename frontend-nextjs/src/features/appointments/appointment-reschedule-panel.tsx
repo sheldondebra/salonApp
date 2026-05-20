@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { BookingDateStrip } from "@/features/booking/booking-date-strip";
 import { BookingTimeSlots } from "@/features/booking/booking-time-slots";
-import { bookingApiBase } from "@/lib/api/tenant-path";
+import { loadAvailabilitySlots } from "@/features/booking/load-availability-slots";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import type { Appointment, BookingTimeSlot } from "@/lib/api/types";
@@ -26,7 +26,6 @@ export function AppointmentReschedulePanel({
   onClose,
   onRescheduled,
 }: AppointmentReschedulePanelProps) {
-  const apiBase = bookingApiBase(tenantSlug);
   const serviceId = appointment.service?.id;
   const initialDate = appointment.starts_at
     ? format(parseISO(appointment.starts_at), "yyyy-MM-dd")
@@ -45,25 +44,18 @@ export function AppointmentReschedulePanel({
     if (!serviceId || !date) return;
     setLoadingSlots(true);
     try {
-      const params = new URLSearchParams({
+      const data = await loadAvailabilitySlots({
+        tenantSlug,
         date,
-        "service_ids[0]": String(serviceId),
-        exclude_appointment_uuid: appointment.uuid,
+        serviceIds: [serviceId],
+        staffMemberId: appointment.staff_member?.id ?? null,
+        locationId: appointment.location?.id ?? null,
+        excludeAppointmentUuid: appointment.uuid,
       });
-      if (appointment.staff_member?.id) {
-        params.set("staff_member_id", String(appointment.staff_member.id));
-      }
-      if (appointment.location?.id) {
-        params.set("location_id", String(appointment.location.id));
-      }
-
-      const res = await createApiClient().get<{ data: BookingTimeSlot[] }>(
-        `${apiBase}/availability?${params}`
-      );
-      setSlots(Array.isArray(res.data) ? res.data : []);
-      const stillValid = res.data?.some((s) => s.time === time && s.available);
+      setSlots(data);
+      const stillValid = data.some((s) => s.time === time && s.available);
       if (!stillValid) {
-        const first = res.data?.find((s) => s.available);
+        const first = data.find((s) => s.available);
         setTime(first?.time ?? "");
       }
     } catch {
@@ -72,7 +64,7 @@ export function AppointmentReschedulePanel({
     } finally {
       setLoadingSlots(false);
     }
-  }, [apiBase, appointment, date, serviceId, time]);
+  }, [tenantSlug, appointment, date, serviceId, time]);
 
   useEffect(() => {
     loadSlots();

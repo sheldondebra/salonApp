@@ -93,6 +93,8 @@ class NotificationService
                 ['appointment_id' => $appointment->id]
             );
         }
+
+        $this->markReminderSent($appointment);
     }
 
     public function paymentAlert(Appointment $appointment, int $amountCents, string $currency): void
@@ -215,10 +217,26 @@ class NotificationService
 
     protected function reminderAlreadySent(Appointment $appointment): bool
     {
+        if (Cache::has($this->reminderCacheKey($appointment->id))) {
+            return true;
+        }
+
         return SmsMessage::query()
             ->where('type', SmsNotificationType::BookingReminder->value)
-            ->where('status', 'sent')
+            ->whereIn('status', ['sent', 'queued'])
             ->where('meta->appointment_id', $appointment->id)
             ->exists();
+    }
+
+    protected function markReminderSent(Appointment $appointment): void
+    {
+        $ttl = $appointment->starts_at?->addDay() ?? now()->addDays(7);
+
+        Cache::put($this->reminderCacheKey($appointment->id), true, $ttl);
+    }
+
+    protected function reminderCacheKey(int $appointmentId): string
+    {
+        return 'booking_reminder_sent:'.$appointmentId;
     }
 }

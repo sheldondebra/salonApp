@@ -23,6 +23,32 @@ class PaymentService
         protected PaymentGatewayManager $gateways,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function reconcileFailureByReference(string $reference, array $payload = []): void
+    {
+        if (str_starts_with($reference, 'sub_')) {
+            $subscription = PlatformSubscription::query()
+                ->where('provider_reference', $reference)
+                ->first();
+
+            if ($subscription && $subscription->status !== 'active') {
+                $this->logSubscriptionFailure($subscription, 'webhook_failed', $payload);
+            }
+
+            return;
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('provider_reference', $reference)
+            ->first();
+
+        if ($transaction && ! $transaction->isPaid()) {
+            $this->markTransactionFailed($transaction, 'webhook_failed', $payload);
+        }
+    }
+
     public function reconcileByReference(string $reference): bool
     {
         if (str_starts_with($reference, 'sub_')) {

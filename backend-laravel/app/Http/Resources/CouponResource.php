@@ -23,6 +23,7 @@ class CouponResource extends JsonResource
             'starts_at' => $this->starts_at?->toIso8601String(),
             'expires_at' => $this->expires_at?->toIso8601String(),
             'is_active' => $this->is_active,
+            'valid_now' => $this->isValid(),
             'metadata' => $this->metadata ?? [],
             'created_at' => $this->created_at?->toIso8601String(),
         ];

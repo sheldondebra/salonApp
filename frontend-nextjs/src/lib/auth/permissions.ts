@@ -46,6 +46,17 @@ export const Permissions = {
   settings: {
     manage: "settings.manage",
   },
+  inventory: {
+    view: "inventory.view",
+    create: "inventory.create",
+    update: "inventory.update",
+    delete: "inventory.delete",
+    export: "inventory.export",
+  },
+  pos: {
+    view: "pos.view",
+    create: "pos.create",
+  },
 } as const;
 
 export type PermissionName = string;

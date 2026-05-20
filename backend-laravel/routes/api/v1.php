@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\Admin\CouponAdminController;
 use App\Http\Controllers\Api\V1\Admin\DomainAdminController;
 use App\Http\Controllers\Api\V1\Admin\PlanAdminController;
 use App\Http\Controllers\Api\V1\Admin\SmsAdminController;
+use App\Http\Controllers\Api\V1\Admin\SmsResellerAdminController;
+use App\Http\Controllers\Api\V1\TenantSmsController;
 use App\Http\Controllers\Api\V1\Admin\SubscriptionAdminController;
 use App\Http\Controllers\Api\V1\Admin\SupportAdminController;
 use App\Http\Controllers\Api\V1\Admin\TenantController as AdminTenantController;
@@ -32,6 +34,12 @@ use App\Http\Controllers\Api\V1\TenantCouponController;
 use App\Http\Controllers\Api\V1\BookingWaitlistController;
 use App\Http\Controllers\Api\V1\TenantPaymentController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\InventoryDashboardController;
+use App\Http\Controllers\Api\V1\ProductCategoryController;
+use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\StockMovementController;
+use App\Http\Controllers\Api\V1\SupplierController;
+use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\ReportsController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\PlatformAbilitiesController;
@@ -91,6 +99,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/account/tenants', [ClientAccountController::class, 'tenants']);
     Route::get('/auth/platform/abilities', PlatformAbilitiesController::class);
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
@@ -152,6 +161,13 @@ Route::middleware(['auth:sanctum'])
             Route::patch('/domains/{domain}', [DomainAdminController::class, 'update']);
             Route::delete('/domains/{domain}', [DomainAdminController::class, 'destroy']);
             Route::get('/sms', [SmsAdminController::class, 'index']);
+            Route::get('/sms-reseller/overview', [SmsResellerAdminController::class, 'overview']);
+            Route::get('/sms-reseller/provider', [SmsResellerAdminController::class, 'provider']);
+            Route::post('/sms-reseller/provider/sync', [SmsResellerAdminController::class, 'syncProvider']);
+            Route::get('/sms-reseller/provider/sync-logs', [SmsResellerAdminController::class, 'syncLogs']);
+            Route::get('/sms-reseller/wallets', [SmsResellerAdminController::class, 'wallets']);
+            Route::get('/sms-reseller/transactions', [SmsResellerAdminController::class, 'transactions']);
+            Route::get('/sms-reseller/purchases', [SmsResellerAdminController::class, 'purchases']);
         });
     });
 
@@ -219,6 +235,8 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
         Route::middleware(EnsurePermission::class.':analytics.view')->group(function () {
             Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
             Route::get('/dashboard/revenue-chart', [DashboardController::class, 'revenueChart']);
+            Route::get('/dashboard/growth-chart', [DashboardController::class, 'growthChart']);
+            Route::get('/dashboard/bookings-breakdown', [DashboardController::class, 'bookingsBreakdown']);
             Route::get('/dashboard/upcoming', [DashboardController::class, 'upcomingAppointments']);
             Route::get('/dashboard/recent', [DashboardController::class, 'recentAppointments']);
             Route::get('/reports', [ReportsController::class, 'index']);
@@ -228,6 +246,10 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
             Route::get('/appointments', [AppointmentController::class, 'index']);
             Route::get('/appointments/{uuid}', [AppointmentController::class, 'show']);
             Route::get('/payments', [TenantPaymentController::class, 'index']);
+        });
+
+        Route::middleware(EnsurePermission::class.':bookings.create')->group(function () {
+            Route::post('/appointments', [AppointmentController::class, 'store']);
         });
 
         Route::middleware(EnsurePermission::class.':bookings.update')->group(function () {
@@ -242,13 +264,16 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
             Route::post('/coupons', [TenantCouponController::class, 'store']);
             Route::patch('/coupons/{coupon}', [TenantCouponController::class, 'update']);
             Route::delete('/coupons/{coupon}', [TenantCouponController::class, 'destroy']);
+            Route::get('/sms', [TenantSmsController::class, 'index']);
+            Route::get('/sms/wallet', [TenantSmsController::class, 'wallet']);
+            Route::get('/sms/wallet/transactions', [TenantSmsController::class, 'walletTransactions']);
         });
 
         Route::middleware(EnsurePermission::class.':settings.manage|staff.update')->group(function () {
             Route::patch('/team/{user}/role', [TenantTeamRoleController::class, 'update']);
         });
 
-        Route::middleware(EnsurePermission::class.':services.view|settings.manage')->group(function () {
+        Route::middleware(EnsurePermission::class.':services.view|settings.manage|inventory.view|pos.view')->group(function () {
             Route::get('/locations', [LocationController::class, 'index']);
         });
 
@@ -258,7 +283,7 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
             Route::delete('/locations/{location}', [LocationController::class, 'destroy']);
         });
 
-        Route::middleware(EnsurePermission::class.':services.view')->group(function () {
+        Route::middleware(EnsurePermission::class.':services.view|pos.view')->group(function () {
             Route::get('/service-categories', [ServiceCategoryController::class, 'index']);
             Route::get('/services', [ServiceController::class, 'index']);
         });
@@ -276,6 +301,43 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
         Route::middleware(EnsurePermission::class.':services.delete')->group(function () {
             Route::delete('/service-categories/{serviceCategory}', [ServiceCategoryController::class, 'destroy']);
             Route::delete('/services/{service}', [ServiceController::class, 'destroy']);
+        });
+
+        Route::middleware(EnsurePermission::class.':inventory.view|pos.view')->group(function () {
+            Route::get('/inventory/dashboard', [InventoryDashboardController::class, 'show']);
+            Route::get('/product-categories', [ProductCategoryController::class, 'index']);
+            Route::get('/suppliers', [SupplierController::class, 'index']);
+            Route::get('/products', [ProductController::class, 'index']);
+            Route::get('/stock-movements', [StockMovementController::class, 'index']);
+        });
+
+        Route::middleware(EnsurePermission::class.':pos.view')->group(function () {
+            Route::get('/sales', [SaleController::class, 'index']);
+            Route::get('/sales/{sale}', [SaleController::class, 'show']);
+        });
+
+        Route::middleware(EnsurePermission::class.':pos.create')->group(function () {
+            Route::post('/sales', [SaleController::class, 'store']);
+            Route::post('/sales/validate-coupon', [SaleController::class, 'validateCoupon']);
+        });
+
+        Route::middleware(EnsurePermission::class.':inventory.create')->group(function () {
+            Route::post('/product-categories', [ProductCategoryController::class, 'store']);
+            Route::post('/suppliers', [SupplierController::class, 'store']);
+            Route::post('/products', [ProductController::class, 'store']);
+        });
+
+        Route::middleware(EnsurePermission::class.':inventory.update')->group(function () {
+            Route::patch('/product-categories/{productCategory}', [ProductCategoryController::class, 'update']);
+            Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update']);
+            Route::patch('/products/{product}', [ProductController::class, 'update']);
+            Route::post('/products/{product}/adjust-stock', [ProductController::class, 'adjustStock']);
+        });
+
+        Route::middleware(EnsurePermission::class.':inventory.delete')->group(function () {
+            Route::delete('/product-categories/{productCategory}', [ProductCategoryController::class, 'destroy']);
+            Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy']);
+            Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         });
 
         Route::middleware(EnsurePermission::class.':staff.view')->group(function () {
@@ -324,6 +386,10 @@ Route::middleware(['auth:sanctum', ResolveTenant::class, EnsureTenantResolved::c
         Route::prefix('account')->group(function () {
             Route::middleware(EnsurePermission::class.':bookings.view')->group(function () {
                 Route::get('/bookings', [ClientAccountController::class, 'bookingHistory']);
+                Route::get('/bookings/{uuid}', [ClientAccountController::class, 'showBooking']);
+            });
+            Route::middleware(EnsurePermission::class.':bookings.create')->group(function () {
+                Route::patch('/bookings/{uuid}', [ClientAccountController::class, 'updateBooking']);
             });
             Route::get('/favorites', [ClientAccountController::class, 'favorites']);
             Route::post('/favorites', [ClientAccountController::class, 'storeFavorite']);

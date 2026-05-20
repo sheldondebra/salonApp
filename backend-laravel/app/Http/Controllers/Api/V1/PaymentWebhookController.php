@@ -25,11 +25,7 @@ class PaymentWebhookController extends Controller
         }
 
         $data = $request->all();
-        $reference = $gateway->handleWebhook($data);
-
-        if ($reference) {
-            $this->payments->reconcileByReference($reference);
-        }
+        $this->processWebhookPayload($gateway, $data);
 
         return response()->json(['received' => true]);
     }
@@ -44,12 +40,36 @@ class PaymentWebhookController extends Controller
         }
 
         $data = $request->all();
+        $this->processWebhookPayload($gateway, $data);
+
+        return response()->json(['received' => true]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    protected function processWebhookPayload(\App\Integrations\Payments\PaymentGatewayContract $gateway, array $data): void
+    {
         $reference = $gateway->handleWebhook($data);
 
         if ($reference) {
             $this->payments->reconcileByReference($reference);
+
+            return;
         }
 
-        return response()->json(['received' => true]);
+        $event = (string) ($data['event'] ?? '');
+        $status = (string) ($data['data']['status'] ?? '');
+        $failed = str_contains(strtolower($event), 'fail') || $status === 'failed';
+
+        if (! $failed) {
+            return;
+        }
+
+        $failedReference = $data['data']['reference'] ?? $data['data']['tx_ref'] ?? null;
+
+        if (is_string($failedReference) && $failedReference !== '') {
+            $this->payments->reconcileFailureByReference($failedReference, $data);
+        }
     }
 }

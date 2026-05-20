@@ -1,9 +1,10 @@
 "use client";
 
 import { format, formatDistanceToNow } from "date-fns";
-import { Calendar, CalendarClock, Check, Clock, MapPin, Scissors, User, X } from "lucide-react";
+import { Calendar, CalendarClock, Check, Clock, MapPin, Scissors, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmAction } from "@/features/crud/confirm-action";
 import type { Appointment, AppointmentStatus } from "@/lib/api/types";
 import { STATUS_BADGE_VARIANT, STATUS_LABELS, isAppointmentStatus } from "@/lib/appointments/status";
 import { cn } from "@/lib/utils";
@@ -166,16 +167,12 @@ export function AppointmentCard({
           >
             No show
           </Button>
-          <Button
-            type="button"
-            size="sm"
+          <ConfirmAction
+            label="Cancel"
             variant="ghost"
-            className="h-8 gap-1 text-destructive hover:text-destructive"
-            onClick={() => onStatusChange(appointment.uuid, "cancelled")}
-          >
-            <X className="h-3.5 w-3.5" />
-            Cancel
-          </Button>
+            confirmMessage="Cancel this appointment? The client may need to be notified separately."
+            onConfirm={() => onStatusChange(appointment.uuid, "cancelled")}
+          />
         </div>
       ) : null}
     </article>

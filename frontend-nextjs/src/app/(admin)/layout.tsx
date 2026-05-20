@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { PlatformAccessDenied } from "@/components/admin/platform-access-denied";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { ContentAreaSkeleton } from "@/components/shared/content-area-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -60,14 +61,7 @@ function AdminLayoutGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!can(Permissions.tenants.view) && !can(Permissions.billing.manage)) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <p className="text-lg font-semibold">No platform access</p>
-        <p className="max-w-md text-sm text-muted-foreground">
-          This account is not authorized for the General Office dashboard.
-        </p>
-      </div>
-    );
+    return <PlatformAccessDenied />;
   }
 
   return <>{children}</>;

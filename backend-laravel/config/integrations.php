@@ -25,6 +25,7 @@ return [
         'api_key' => env('MNOTIFY_API_KEY'),
         'sender_id' => env('MNOTIFY_SENDER_ID'),
         'base_url' => env('MNOTIFY_BASE_URL', 'https://api.mnotify.com/api'),
+        'balance_url' => env('MNOTIFY_BALANCE_URL', 'https://apps.mnotify.net/smsapi/balance'),
       ],
     ],
   ],

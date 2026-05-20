@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,12 @@ export function ApplyCouponField({
   const [discountCents, setDiscountCents] = useState(0);
   const [finalCents, setFinalCents] = useState(subtotalCents);
   const [validating, setValidating] = useState(false);
+
+  useEffect(() => {
+    if (discountCents === 0) {
+      setFinalCents(subtotalCents);
+    }
+  }, [subtotalCents, discountCents]);
 
   async function apply() {
     if (!code.trim()) return;

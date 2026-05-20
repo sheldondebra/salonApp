@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createApiClient } from "@/lib/api/client";
 import { bookingApiBase, tenantApiBase } from "@/lib/api/tenant-path";
 import type { PortfolioGalleryItem } from "@/features/onboarding/types";
-import type { Service, StaffMember, Tenant, TenantBookingConfig } from "@/lib/api/types";
+import type { Location, Service, StaffMember, Tenant, TenantBookingConfig } from "@/lib/api/types";
 import { getApiClientOptions } from "@/lib/auth/session";
 
 type TenantContextResponse = {
@@ -18,6 +18,7 @@ export function usePublicBooking(slug?: string | null) {
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [booking, setBooking] = useState<TenantBookingConfig | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioGalleryItem[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +34,9 @@ export function usePublicBooking(slug?: string | null) {
       client.get<TenantContextResponse>(`${tenantApiBase(slug)}/context`),
       client.get<{ data: Service[] }>(`${bookBase}/services`).catch(() => ({ data: [] })),
       client.get<{ data: StaffMember[] }>(`${bookBase}/staff`).catch(() => ({ data: [] })),
+      client.get<{ data: Location[] }>(`${bookBase}/locations`).catch(() => ({ data: [] })),
     ])
-      .then(([ctx, svc, st]) => {
+      .then(([ctx, svc, st, loc]) => {
         if (cancelled) return;
         setTenant(ctx.tenant);
         setBooking(ctx.booking ?? null);
@@ -44,6 +46,7 @@ export function usePublicBooking(slug?: string | null) {
         );
         setServices(Array.isArray(svc.data) ? svc.data : []);
         setStaff(Array.isArray(st.data) ? st.data : []);
+        setLocations(Array.isArray(loc.data) ? loc.data : []);
         setError(null);
       })
       .catch((e) => {
@@ -60,5 +63,5 @@ export function usePublicBooking(slug?: string | null) {
     };
   }, [slug]);
 
-  return { tenant, booking, portfolio, services, staff, loading, error };
+  return { tenant, booking, portfolio, locations, services, staff, loading, error };
 }

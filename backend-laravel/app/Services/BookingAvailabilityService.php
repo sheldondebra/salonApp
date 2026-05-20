@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Appointment;
+use App\Support\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -19,8 +20,14 @@ class BookingAvailabilityService
         ?int $excludeAppointmentId = null,
     ): array {
         $day = Carbon::parse($date)->startOfDay();
-        $start = $this->parseTimeOnDay($day, config('booking.hours.start', '09:00'));
-        $end = $this->parseTimeOnDay($day, config('booking.hours.end', '18:00'));
+        [$dayOpen, $dayClose] = $this->hoursForDay($day);
+
+        if ($dayOpen === null || $dayClose === null) {
+            return [];
+        }
+
+        $start = $this->parseTimeOnDay($day, $dayOpen);
+        $end = $this->parseTimeOnDay($day, $dayClose);
         $interval = config('booking.slot_interval_minutes', 15);
 
         $busy = $this->busyRanges($day, $staffMemberId, $locationId, $excludeAppointmentId);
@@ -112,5 +119,39 @@ class BookingAvailabilityService
         [$h, $m] = array_pad(explode(':', $time), 2, 0);
 
         return $day->copy()->setTime((int) $h, (int) $m, 0);
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string} open and close times (H:i), or nulls when closed
+     */
+    protected function hoursForDay(Carbon $day): array
+    {
+        $defaultStart = config('booking.hours.start', '09:00');
+        $defaultEnd = config('booking.hours.end', '18:00');
+
+        $tenant = TenantContext::get();
+        $hours = $tenant?->setting('opening_hours', []);
+        if (! is_array($hours) || $hours === []) {
+            return [$defaultStart, $defaultEnd];
+        }
+
+        $dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        $key = $dayKeys[$day->dayOfWeekIso - 1] ?? 'mon';
+
+        foreach ($hours as $row) {
+            if (! is_array($row) || ($row['day'] ?? null) !== $key) {
+                continue;
+            }
+            if (! empty($row['closed'])) {
+                return [null, null];
+            }
+
+            return [
+                (string) ($row['open'] ?? $defaultStart),
+                (string) ($row['close'] ?? $defaultEnd),
+            ];
+        }
+
+        return [$defaultStart, $defaultEnd];
     }
 }

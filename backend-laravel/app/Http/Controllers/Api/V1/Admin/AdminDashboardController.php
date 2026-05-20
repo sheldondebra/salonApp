@@ -6,6 +6,7 @@ use App\Enums\OnboardingStatus;
 use App\Http\Controllers\Controller;
 use App\Models\PlatformSubscription;
 use App\Models\SmsMessage;
+use App\Models\SmsProviderBalance;
 use App\Models\Tenant;
 use App\Models\User;
 use Carbon\Carbon;
@@ -38,6 +39,8 @@ class AdminDashboardController extends Controller
         $smsSent = SmsMessage::query()->where('status', 'sent')->count();
         $smsFailed = SmsMessage::query()->whereIn('status', ['failed', 'error'])->count();
 
+        $mnotify = SmsProviderBalance::query()->where('provider', 'mnotify')->first();
+
         $recentTenants = Tenant::query()
             ->withCount('users')
             ->latest()
@@ -61,6 +64,9 @@ class AdminDashboardController extends Controller
                 'revenue_cents' => $revenueCents,
                 'sms_sent' => $smsSent,
                 'sms_failed' => $smsFailed,
+                'mnotify_balance' => (int) ($mnotify?->balance_credits ?? 0),
+                'mnotify_status' => $mnotify?->status ?? 'pending_sync',
+                'mnotify_last_synced_at' => $mnotify?->last_synced_at?->toIso8601String(),
             ],
             'recent_tenants' => $recentTenants,
             'charts' => [
