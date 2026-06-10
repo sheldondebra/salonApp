@@ -43,5 +43,85 @@ class RolesAndPermissionsSeeder extends Seeder
         foreach ($staffSettingsRoles as $roleName) {
             Role::findByName($roleName, $guard)?->givePermissionTo('staff.settings');
         }
+
+        $paymentRequestRoles = [
+            RoleName::TenantOwner->value => [
+                'payment_requests.view',
+                'payment_requests.create',
+                'payment_requests.cancel',
+                'payment_requests.retry',
+                'payment_requests.verify',
+            ],
+            RoleName::Manager->value => [
+                'payment_requests.view',
+                'payment_requests.create',
+                'payment_requests.cancel',
+                'payment_requests.retry',
+                'payment_requests.verify',
+            ],
+            RoleName::Staff->value => [
+                'payment_requests.view',
+                'payment_requests.create',
+            ],
+        ];
+
+        foreach ($paymentRequestRoles as $roleName => $permissions) {
+            Role::findByName($roleName, $guard)?->givePermissionTo($permissions);
+        }
+
+        $walletRoles = [
+            RoleName::TenantOwner->value => ['wallet.view', 'wallet.export'],
+            RoleName::Manager->value => ['wallet.view', 'wallet.export'],
+            RoleName::Staff->value => ['wallet.view'],
+        ];
+
+        foreach ($walletRoles as $roleName => $permissions) {
+            Role::findByName($roleName, $guard)?->givePermissionTo($permissions);
+        }
+
+        $financeOpsRoles = [
+            RoleName::TenantOwner->value => [
+                'finance.refund',
+                'finance.adjust_transaction',
+                'finance.apply_discount',
+                'finance.approve_discount',
+                'finance.view_tips',
+                'finance.payroll.view',
+                'finance.reconciliation.manage',
+                'finance.taxes.manage',
+            ],
+            RoleName::Manager->value => [
+                'finance.refund',
+                'finance.adjust_transaction',
+                'finance.apply_discount',
+                'finance.approve_discount',
+                'finance.view_tips',
+                'finance.payroll.view',
+                'finance.reconciliation.manage',
+                'finance.taxes.manage',
+            ],
+            RoleName::Staff->value => [
+                'finance.apply_discount',
+                'finance.view_tips',
+                'finance.payroll.view_self',
+                'finance.reconciliation.manage',
+                'approvals.create',
+            ],
+        ];
+
+        foreach ($financeOpsRoles as $roleName => $permissions) {
+            Role::findByName($roleName, $guard)?->givePermissionTo($permissions);
+        }
+
+        $officePermissions = [
+            'office.dashboard.view',
+            'office.tenants.view',
+            'office.operations.view',
+            'office.finance.view',
+            'office.support.view',
+            'office.settings.manage',
+        ];
+
+        Role::findByName(RoleName::OfficeAdmin->value, $guard)?->givePermissionTo($officePermissions);
     }
 }

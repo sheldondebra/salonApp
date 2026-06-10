@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Location extends Model
@@ -17,6 +19,8 @@ class Location extends Model
         'address_line1',
         'city',
         'country',
+        'latitude',
+        'longitude',
         'is_active',
     ];
 
@@ -24,6 +28,8 @@ class Location extends Model
     {
         return [
             'is_active' => 'boolean',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
         ];
     }
 
@@ -32,5 +38,25 @@ class Location extends Model
         static::creating(function (Location $location) {
             $location->uuid ??= (string) Str::uuid();
         });
+    }
+
+    public function branchGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(BranchGroup::class, 'branch_group_locations')->withTimestamps();
+    }
+
+    public function branchOverrides(): HasMany
+    {
+        return $this->hasMany(BranchSettingOverride::class);
+    }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
     }
 }

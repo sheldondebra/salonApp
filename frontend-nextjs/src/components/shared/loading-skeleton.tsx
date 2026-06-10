@@ -39,17 +39,22 @@ export function CardBlockSkeleton({ className }: { className?: string }) {
 /** Full dashboard loading state. */
 export function DashboardSkeleton() {
   return (
-    <div className="w-full space-y-8">
-      <Skeleton className="h-36 w-full rounded-2xl" />
-      <MetricGridSkeleton count={6} className="grid-cols-2 md:grid-cols-3 2xl:grid-cols-6" />
-      <div className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2">
-        <CardBlockSkeleton className="min-h-[360px]" />
-        <CardBlockSkeleton className="min-h-[360px]" />
+    <div className="w-full space-y-5 sm:space-y-6">
+      <Skeleton className="h-32 w-full rounded-2xl sm:h-36" />
+      <div className="flex gap-3 overflow-hidden sm:grid sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 min-w-[9.25rem] shrink-0 rounded-2xl sm:min-w-0" />
+        ))}
       </div>
-      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-3">
-        <CardBlockSkeleton className="h-64" />
-        <CardBlockSkeleton className="h-64" />
-        <CardBlockSkeleton className="h-64" />
+      <CardBlockSkeleton className="min-h-[280px]" />
+      <div className="flex gap-3 overflow-hidden sm:grid sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 min-w-[5.5rem] shrink-0 rounded-2xl sm:min-w-0" />
+        ))}
+      </div>
+      <div className="grid w-full grid-cols-1 gap-5 lg:grid-cols-2">
+        <CardBlockSkeleton className="min-h-[280px]" />
+        <CardBlockSkeleton className="min-h-[280px]" />
       </div>
     </div>
   );

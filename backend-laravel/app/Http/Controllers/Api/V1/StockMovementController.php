@@ -15,7 +15,7 @@ class StockMovementController extends Controller
         $this->authorize('viewAny', \App\Models\Product::class);
 
         $query = StockMovement::query()
-            ->with(['product', 'location', 'user'])
+            ->with(['product', 'location', 'user', 'purchaseOrder'])
             ->orderByDesc('created_at');
 
         if ($request->filled('product_id')) {

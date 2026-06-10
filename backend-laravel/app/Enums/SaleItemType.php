@@ -6,4 +6,5 @@ enum SaleItemType: string
 {
     case Service = 'service';
     case Product = 'product';
+    case Addon = 'addon';
 }

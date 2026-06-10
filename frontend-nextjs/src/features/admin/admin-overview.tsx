@@ -8,12 +8,23 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { Building2, CreditCard, MessageSquare, Server, UserCheck, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Building2,
+  CreditCard,
+  LifeBuoy,
+  MessageSquare,
+  Server,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
@@ -22,21 +33,25 @@ import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import { formatMoney } from "@/lib/format/money";
 
-type DashboardStats = {
-  tenants: number;
-  paid_subscriptions: number;
-  unpaid_signups: number;
-  paid_awaiting_setup: number;
-  onboarded_owners: number;
-  revenue_cents: number;
-  sms_sent: number;
-  sms_failed: number;
-  mnotify_balance?: number;
-  mnotify_status?: string;
-  mnotify_last_synced_at?: string | null;
+type CommandCards = {
+  active_tenants: number;
+  trial_tenants: number;
+  mrr_cents: number;
+  revenue_collected_cents: number;
+  failed_payments: number;
+  open_support_tickets: number;
+  sms_balance: number;
+  provider_incidents: number;
 };
 
-type ChartPoint = { month: string; count?: number; revenue_cents?: number };
+type ChartPoint = { month: string; count?: number; revenue_cents?: number; amount_cents?: number };
+
+type PlatformAlert = {
+  type: string;
+  title: string;
+  count: number;
+  severity: string;
+};
 
 type RecentTenant = {
   name: string;
@@ -46,113 +61,143 @@ type RecentTenant = {
   created_at: string;
 };
 
+type OverviewResponse = {
+  cards: CommandCards;
+  stats?: Record<string, number | string | null>;
+  alerts?: PlatformAlert[];
+  recent_tenants: RecentTenant[];
+  charts: {
+    mrr_trend: ChartPoint[];
+    tenant_growth: ChartPoint[];
+    payment_volume: ChartPoint[];
+    support_ticket_trend: ChartPoint[];
+    signups?: ChartPoint[];
+    revenue?: ChartPoint[];
+  };
+};
+
 export function AdminOverview() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [signups, setSignups] = useState<ChartPoint[]>([]);
-  const [revenue, setRevenue] = useState<ChartPoint[]>([]);
-  const [recent, setRecent] = useState<RecentTenant[]>([]);
+  const [data, setData] = useState<OverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     createApiClient(getApiClientOptions())
-      .get<{
-        stats: DashboardStats;
-        recent_tenants: RecentTenant[];
-        charts: { signups: ChartPoint[]; revenue: ChartPoint[] };
-      }>("/admin/dashboard")
-      .then((res) => {
-        setStats(res.stats);
-        setRecent(res.recent_tenants ?? []);
-        setSignups(res.charts?.signups ?? []);
-        setRevenue(res.charts?.revenue ?? []);
-      })
+      .get<OverviewResponse>("/admin/overview")
+      .then(setData)
+      .catch(() =>
+        createApiClient(getApiClientOptions())
+          .get<OverviewResponse>("/admin/dashboard")
+          .then(setData)
+      )
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <DashboardSkeleton />;
+  const cards = data?.cards;
+  const alerts = data?.alerts ?? [];
 
-  const cards = [
-    { title: "Active tenants", value: String(stats?.tenants ?? 0), icon: Building2 },
-    {
-      title: "Platform revenue",
-      value: formatMoney(stats?.revenue_cents ?? 0),
-      icon: CreditCard,
-      hint: "All-time paid subscriptions",
-    },
-    { title: "Paid subscriptions", value: String(stats?.paid_subscriptions ?? 0), icon: CreditCard },
-    { title: "Onboarded owners", value: String(stats?.onboarded_owners ?? 0), icon: UserCheck },
-    { title: "Unpaid signups", value: String(stats?.unpaid_signups ?? 0), icon: Users },
-    {
-      title: "SMS delivered",
-      value: String(stats?.sms_sent ?? 0),
-      icon: MessageSquare,
-      hint: stats?.sms_failed ? `${stats.sms_failed} failed` : undefined,
-    },
-    {
-      title: "MNotify balance",
-      value: String(stats?.mnotify_balance ?? 0),
-      icon: Server,
-      hint: stats?.mnotify_last_synced_at
-        ? `Synced ${new Date(stats.mnotify_last_synced_at).toLocaleString()} · ${stats.mnotify_status ?? "—"}`
-        : stats?.mnotify_status ?? "Sync in Admin → SMS",
-    },
-  ];
+  if (loading) return <DashboardSkeleton />;
 
   const formatMonth = (m: string) => {
     const [y, mo] = m.split("-");
     return new Date(Number(y), Number(mo) - 1).toLocaleDateString("en-US", { month: "short" });
   };
 
+  const metricCards = [
+    { title: "Active tenants", value: String(cards?.active_tenants ?? 0), icon: Building2 },
+    { title: "Trial tenants", value: String(cards?.trial_tenants ?? 0), icon: Users },
+    {
+      title: "MRR",
+      value: formatMoney(cards?.mrr_cents ?? 0),
+      icon: TrendingUp,
+      hint: "Estimated from active plan prices",
+    },
+    {
+      title: "Revenue collected",
+      value: formatMoney(cards?.revenue_collected_cents ?? 0),
+      icon: CreditCard,
+      hint: "All-time paid subscriptions",
+    },
+    {
+      title: "Failed payments",
+      value: String(cards?.failed_payments ?? 0),
+      icon: AlertTriangle,
+      hint: cards?.failed_payments ? "Review payment failures" : undefined,
+    },
+    {
+      title: "Open support tickets",
+      value: String(cards?.open_support_tickets ?? 0),
+      icon: LifeBuoy,
+    },
+    {
+      title: "SMS balance",
+      value: String(cards?.sms_balance ?? 0),
+      icon: MessageSquare,
+      hint: "MNotify reseller credits",
+    },
+    {
+      title: "Provider incidents",
+      value: String(cards?.provider_incidents ?? 0),
+      icon: Server,
+      hint: "MTN MoMo + SMS provider health",
+    },
+  ];
+
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {cards.map((c) => (
+      {alerts.length > 0 ? (
+        <Card className="rounded-2xl border-amber-500/30 bg-amber-500/5 shadow-soft">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              Platform alerts
+              <span className="ml-auto text-xs font-normal text-muted-foreground">
+                {alerts.reduce((sum, alert) => sum + alert.count, 0)} items
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {alerts.map((alert) => (
+              <Link
+                key={alert.type}
+                href={
+                  alert.type === "failed_payments"
+                    ? "/admin/payment-failures"
+                    : alert.type === "provider_health"
+                      ? "/admin/provider-health"
+                      : alert.type === "support"
+                        ? "/admin/support"
+                        : "/admin/tenants"
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm hover:bg-muted/50"
+              >
+                <span className="font-medium">{alert.title}</span>
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                  {alert.count}
+                </span>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metricCards.map((c) => (
           <MetricCard key={c.title} title={c.title} value={c.value} hint={c.hint} icon={c.icon} />
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="rounded-2xl shadow-soft">
-          <CardHeader>
-            <CardTitle className="text-base">Owner signups</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={signups}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-                <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={12} />
-                <YAxis allowDecimals={false} fontSize={12} />
-                <Tooltip labelFormatter={(label) => formatMonth(String(label))} />
-                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl shadow-soft">
-          <CardHeader>
-            <CardTitle className="text-base">Subscription revenue</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenue}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
-                <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={12} />
-                <YAxis tickFormatter={(v) => formatMoney(Number(v))} fontSize={12} />
-                <Tooltip
-                  labelFormatter={(label) => formatMonth(String(label))}
-                  formatter={(value) => [formatMoney(Number(value)), "Revenue"]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="revenue_cents"
-                  stroke="hsl(var(--accent))"
-                  fill="hsl(var(--primary) / 0.25)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <ChartCard title="MRR trend" data={data?.charts.mrr_trend ?? []} dataKey="revenue_cents" formatMonth={formatMonth} type="area" />
+        <ChartCard title="Tenant growth" data={data?.charts.tenant_growth ?? []} dataKey="count" formatMonth={formatMonth} type="bar" />
+        <ChartCard
+          title="Payment volume"
+          data={data?.charts.payment_volume ?? []}
+          dataKey="amount_cents"
+          formatMonth={formatMonth}
+          type="area"
+          valueFormatter={(v) => formatMoney(Number(v))}
+        />
+        <ChartCard title="Support ticket trend" data={data?.charts.support_ticket_trend ?? []} dataKey="count" formatMonth={formatMonth} type="line" />
       </div>
 
       <Card className="rounded-2xl shadow-soft">
@@ -163,11 +208,11 @@ export function AdminOverview() {
           </Button>
         </CardHeader>
         <CardContent>
-          {recent.length === 0 ? (
+          {(data?.recent_tenants ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">No tenants yet.</p>
           ) : (
             <ul className="divide-y divide-border">
-              {recent.map((t) => (
+              {data?.recent_tenants.map((t) => (
                 <li key={t.slug} className="flex items-center justify-between py-3 text-sm">
                   <div>
                     <p className="font-medium">{t.name}</p>
@@ -183,5 +228,63 @@ export function AdminOverview() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ChartCard({
+  title,
+  data,
+  dataKey,
+  formatMonth,
+  type,
+  valueFormatter,
+}: {
+  title: string;
+  data: ChartPoint[];
+  dataKey: string;
+  formatMonth: (m: string) => string;
+  type: "bar" | "area" | "line";
+  valueFormatter?: (v: number) => string;
+}) {
+  const formatValue = valueFormatter ?? ((v: number) => String(v));
+
+  return (
+    <Card className="rounded-2xl shadow-soft">
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          {type === "bar" ? (
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+              <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={12} />
+              <YAxis allowDecimals={false} fontSize={12} />
+              <Tooltip labelFormatter={(label) => formatMonth(String(label))} />
+              <Bar dataKey={dataKey} fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          ) : type === "line" ? (
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+              <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={12} />
+              <YAxis allowDecimals={false} fontSize={12} />
+              <Tooltip labelFormatter={(label) => formatMonth(String(label))} />
+              <Line type="monotone" dataKey={dataKey} stroke="hsl(var(--accent))" strokeWidth={2} dot={false} />
+            </LineChart>
+          ) : (
+            <AreaChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/60" />
+              <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={12} />
+              <YAxis tickFormatter={(v) => formatValue(Number(v))} fontSize={12} />
+              <Tooltip
+                labelFormatter={(label) => formatMonth(String(label))}
+                formatter={(value) => [formatValue(Number(value)), title]}
+              />
+              <Area type="monotone" dataKey={dataKey} stroke="hsl(var(--accent))" fill="hsl(var(--primary) / 0.25)" />
+            </AreaChart>
+          )}
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 }

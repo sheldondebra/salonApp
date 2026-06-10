@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\RoleName;
+use App\Enums\StaffEmploymentMode;
 use App\Enums\UserType;
 use App\Http\Controllers\Api\V1\Concerns\ResolvesTenantFromRequest;
 use App\Http\Controllers\Controller;
@@ -10,6 +11,7 @@ use App\Http\Resources\StaffMemberResource;
 use App\Models\Appointment;
 use App\Models\StaffMember;
 use App\Models\User;
+use App\Services\SelfEmployedStaffService;
 use App\Services\StaffServiceAssignmentService;
 use App\Support\TenantContext;
 use Carbon\Carbon;
@@ -28,6 +30,7 @@ class StaffMemberController extends Controller
 
     public function __construct(
         protected StaffServiceAssignmentService $staffAssignments,
+        protected SelfEmployedStaffService $selfEmployedStaff,
     ) {}
 
     public function stats(Request $request, string $tenantSlug): JsonResponse
@@ -78,7 +81,7 @@ class StaffMemberController extends Controller
         $this->authorize('viewAny', StaffMember::class);
 
         $query = StaffMember::query()
-            ->with(['user', 'location'])
+            ->with(['user', 'location', 'payrollProfile.payRole', 'chairRentalProfile'])
             ->withCount('appointments')
             ->orderBy('display_name');
 
@@ -132,7 +135,7 @@ class StaffMemberController extends Controller
     {
         $this->authorize('view', $staffMember);
 
-        $staffMember->load(['user', 'location'])->loadCount('appointments');
+        $staffMember->load(['user', 'location', 'chairRentalProfile'])->loadCount('appointments');
 
         return response()->json(['data' => new StaffMemberResource($staffMember)]);
     }
@@ -161,6 +164,8 @@ class StaffMemberController extends Controller
                 StaffMember::STATUS_TERMINATED,
             ])],
             'employment_type' => ['nullable', 'string', Rule::in(['full_time', 'part_time', 'contractor'])],
+            'employment_mode' => ['sometimes', 'string', Rule::in(StaffEmploymentMode::values())],
+            'self_employed_settings' => ['nullable', 'array'],
             'hire_date' => ['nullable', 'date'],
             'color_code' => ['nullable', 'string', 'max:16'],
         ]);
@@ -179,11 +184,17 @@ class StaffMemberController extends Controller
             'is_active' => $validated['is_active'] ?? true,
             'employment_status' => $validated['employment_status'] ?? StaffMember::STATUS_ACTIVE,
             'employment_type' => $validated['employment_type'] ?? null,
+            'employment_mode' => $validated['employment_mode'] ?? StaffEmploymentMode::Employed->value,
+            'self_employed_settings' => $validated['self_employed_settings'] ?? [],
             'hire_date' => $validated['hire_date'] ?? null,
             'color_code' => $validated['color_code'] ?? null,
         ]);
 
-        return (new StaffMemberResource($staff->load(['user', 'location'])->loadCount('appointments')))
+        if (array_key_exists('employment_mode', $validated) || array_key_exists('self_employed_settings', $validated)) {
+            $staff = $this->selfEmployedStaff->sync($staff, $validated);
+        }
+
+        return (new StaffMemberResource($staff->load(['user', 'location', 'chairRentalProfile'])->loadCount('appointments')))
             ->response()
             ->setStatusCode(201);
     }
@@ -212,6 +223,8 @@ class StaffMemberController extends Controller
                 StaffMember::STATUS_TERMINATED,
             ])],
             'employment_type' => ['nullable', 'string', Rule::in(['full_time', 'part_time', 'contractor'])],
+            'employment_mode' => ['sometimes', 'string', Rule::in(StaffEmploymentMode::values())],
+            'self_employed_settings' => ['nullable', 'array'],
             'hire_date' => ['nullable', 'date'],
             'color_code' => ['nullable', 'string', 'max:16'],
         ]);
@@ -222,6 +235,10 @@ class StaffMemberController extends Controller
         }
         $staffMember->update($staffFields);
 
+        if (array_key_exists('employment_mode', $validated) || array_key_exists('self_employed_settings', $validated)) {
+            $staffMember = $this->selfEmployedStaff->sync($staffMember, $validated);
+        }
+
         if ($staffMember->user && (array_key_exists('email', $validated) || array_key_exists('phone', $validated))) {
             $staffMember->user->update(array_filter([
                 'email' => $validated['email'] ?? $staffMember->user->email,
@@ -230,7 +247,7 @@ class StaffMemberController extends Controller
             ], fn ($v) => $v !== null));
         }
 
-        return (new StaffMemberResource($staffMember->fresh(['user', 'location'])->loadCount('appointments')))->response();
+        return (new StaffMemberResource($staffMember->fresh(['user', 'location', 'chairRentalProfile'])->loadCount('appointments')))->response();
     }
 
     public function destroy(Request $request, string $tenantSlug, StaffMember $staffMember): JsonResponse
@@ -244,6 +261,45 @@ class StaffMemberController extends Controller
         ]);
 
         return response()->json(['message' => 'Staff member deactivated.']);
+    }
+
+    public function selfEmployedShow(Request $request, string $tenantSlug, StaffMember $staffMember): JsonResponse
+    {
+        $this->authorize('view', $staffMember);
+        abort_unless($staffMember->tenant_id === $this->tenant($request, $tenantSlug)->id, 404);
+
+        return response()->json([
+            'data' => $this->selfEmployedStaff->workspaceProfile($staffMember),
+        ]);
+    }
+
+    public function selfEmployedUpdate(Request $request, string $tenantSlug, StaffMember $staffMember): JsonResponse
+    {
+        $this->authorize('update', $staffMember);
+        abort_unless($staffMember->tenant_id === $this->tenant($request, $tenantSlug)->id, 404);
+
+        $data = $request->validate([
+            'legal_name' => ['nullable', 'string', 'max:255'],
+            'trading_name' => ['nullable', 'string', 'max:255'],
+            'tax_id' => ['nullable', 'string', 'max:64'],
+            'vat_number' => ['nullable', 'string', 'max:64'],
+            'agreement_type' => ['nullable', 'string', 'max:64'],
+            'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'rent_cents' => ['nullable', 'integer', 'min:0'],
+            'payout_method' => ['nullable', 'string', 'max:32'],
+            'payout_reference' => ['nullable', 'string', 'max:255'],
+            'contract_start_at' => ['nullable', 'date'],
+            'contract_end_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $staffMember = $this->selfEmployedStaff->updateWorkspaceProfile($staffMember, $data);
+
+        return response()->json([
+            'data' => $this->selfEmployedStaff->workspaceProfile($staffMember),
+            'message' => 'Self-employed settings saved',
+        ]);
     }
 
     protected function resolveStaffUser($tenant, array $validated): User

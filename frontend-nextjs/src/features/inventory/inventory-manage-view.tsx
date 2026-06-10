@@ -9,12 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MetricCard } from "@/components/shared/metric-card";
+import { CategorySidebar } from "@/components/shared/category-sidebar";
+import { SplitPageLayout } from "@/components/layout/page-layout";
 import { DataTable } from "@/components/shared/data-table";
 import { CrudToolbar } from "@/features/crud/crud-toolbar";
 import { CrudStatusBadge } from "@/features/crud/crud-status-badge";
 import { ConfirmAction } from "@/features/crud/confirm-action";
 import { usePaginatedResource } from "@/features/crud/use-paginated-resource";
 import { useAbilities } from "@/hooks/use-abilities";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { Permissions } from "@/lib/auth/permissions";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
@@ -26,6 +29,7 @@ import type {
   ProductCategory,
   StockMovement,
   Supplier,
+  SupplierContact,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +38,7 @@ type InventoryManageViewProps = {
   currency?: string;
 };
 
-type Tab = "products" | "suppliers" | "movements";
+type Tab = "products" | "suppliers" | "supplier_contacts" | "movements";
 
 const emptyProductForm = () => ({
   name: "",
@@ -71,9 +75,11 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
   const [locations, setLocations] = useState<Location[]>([]);
   const [dashboard, setDashboard] = useState<InventoryDashboard | null>(null);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [lowStockOnly, setLowStockOnly] = useState(false);
 
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
   const [productFormOpen, setProductFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -92,6 +98,18 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [supplierForm, setSupplierForm] = useState(emptySupplierForm());
   const [savingSupplier, setSavingSupplier] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const [supplierContacts, setSupplierContacts] = useState<SupplierContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    role: "",
+    email: "",
+    phone: "",
+    notes: "",
+    is_primary: false,
+  });
+  const [savingContact, setSavingContact] = useState(false);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -100,9 +118,10 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
     setProductsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), per_page: "20" });
-      if (search) params.set("q", search);
+      if (debouncedSearch) params.set("q", debouncedSearch);
       if (locationId) params.set("location_id", locationId);
       if (lowStockOnly) params.set("low_stock", "1");
+      if (selectedCategoryId !== "all") params.set("product_category_id", selectedCategoryId);
       const res = await createApiClient(getApiClientOptions()).get<{ data: Product[] }>(
         `/${tenantSlug}/products?${params}`
       );
@@ -112,7 +131,7 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
     } finally {
       setProductsLoading(false);
     }
-  }, [tenantSlug, search, page, locationId, lowStockOnly]);
+  }, [tenantSlug, debouncedSearch, page, locationId, lowStockOnly, selectedCategoryId]);
 
   const {
     items: suppliers,
@@ -176,6 +195,31 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
     }
   }, [tenantSlug, locationId]);
 
+  const loadSupplierContacts = useCallback(async () => {
+    if (!selectedSupplierId) {
+      setSupplierContacts([]);
+      return;
+    }
+    setContactsLoading(true);
+    try {
+      const res = await createApiClient(getApiClientOptions()).get<{ data: SupplierContact[] }>(
+        `/${tenantSlug}/suppliers/${selectedSupplierId}/contacts`
+      );
+      setSupplierContacts(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      try {
+        const fallback = await createApiClient(getApiClientOptions()).get<{ data: SupplierContact[] }>(
+          `/${tenantSlug}/supplier-contacts?supplier_id=${selectedSupplierId}`
+        );
+        setSupplierContacts(Array.isArray(fallback.data) ? fallback.data : []);
+      } catch {
+        setSupplierContacts([]);
+      }
+    } finally {
+      setContactsLoading(false);
+    }
+  }, [tenantSlug, selectedSupplierId]);
+
   useEffect(() => {
     loadMeta();
   }, [loadMeta]);
@@ -188,6 +232,16 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
   useEffect(() => {
     if (tab === "movements") loadMovements();
   }, [tab, loadMovements]);
+
+  useEffect(() => {
+    if (!selectedSupplierId && suppliers[0]) {
+      setSelectedSupplierId(String(suppliers[0].id));
+    }
+  }, [suppliers, selectedSupplierId]);
+
+  useEffect(() => {
+    if (tab === "supplier_contacts") void loadSupplierContacts();
+  }, [tab, loadSupplierContacts]);
 
   function openCreateProduct() {
     setEditingProduct(null);
@@ -334,6 +388,41 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
     }
   }
 
+  async function saveSupplierContact() {
+    if (!selectedSupplierId || !contactForm.name.trim()) {
+      toast.error("Choose a supplier and contact name");
+      return;
+    }
+    setSavingContact(true);
+    try {
+      await createApiClient(getApiClientOptions()).post(
+        `/${tenantSlug}/suppliers/${selectedSupplierId}/contacts`,
+        {
+          name: contactForm.name.trim(),
+          role: contactForm.role || null,
+          email: contactForm.email || null,
+          phone: contactForm.phone || null,
+          notes: contactForm.notes || null,
+          is_primary: contactForm.is_primary,
+        }
+      );
+      toast.success("Supplier contact saved");
+      setContactForm({
+        name: "",
+        role: "",
+        email: "",
+        phone: "",
+        notes: "",
+        is_primary: false,
+      });
+      await loadSupplierContacts();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not save contact");
+    } finally {
+      setSavingContact(false);
+    }
+  }
+
   const summary = dashboard?.summary;
 
   return (
@@ -401,7 +490,7 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
       ) : null}
 
       <div className="flex flex-wrap gap-2 border-b border-border/60 pb-2">
-        {(["products", "suppliers", "movements"] as Tab[]).map((t) => (
+        {(["products", "suppliers", "supplier_contacts", "movements"] as Tab[]).map((t) => (
           <Button
             key={t}
             type="button"
@@ -410,13 +499,32 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
             className="rounded-full capitalize"
             onClick={() => setTab(t)}
           >
-            {t}
+            {t.replace(/_/g, " ")}
           </Button>
         ))}
       </div>
 
       {tab === "products" ? (
-        <>
+        <SplitPageLayout
+          sidebar={
+            categories.length > 0 ? (
+              <CategorySidebar
+                title="Categories"
+                subtitle="Filter your product catalog"
+                items={[
+                  { id: "all", label: "All products" },
+                  ...categories.map((c) => ({ id: String(c.id), label: c.name })),
+                ]}
+                selectedId={selectedCategoryId}
+                onSelect={(id) => {
+                  setSelectedCategoryId(id);
+                  setPage(1);
+                }}
+              />
+            ) : undefined
+          }
+        >
+          <div className="w-full space-y-4 min-w-0">
           <div className="flex flex-col gap-3">
             <CrudToolbar
               search={search}
@@ -589,7 +697,8 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
             emptyActionLabel={canCreate ? "Add product" : undefined}
             onEmptyAction={canCreate ? openCreateProduct : undefined}
           />
-        </>
+          </div>
+        </SplitPageLayout>
       ) : null}
 
       {tab === "suppliers" ? (
@@ -626,12 +735,26 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
                 id: "actions",
                 header: "",
                 className: "text-right",
-                cell: (row) =>
-                  canUpdate ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => openEditSupplier(row)}>
-                      Edit
+                cell: (row) => (
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedSupplierId(String(row.id));
+                        setTab("supplier_contacts");
+                      }}
+                    >
+                      Contacts
                     </Button>
-                  ) : null,
+                    {canUpdate ? (
+                      <Button type="button" size="sm" variant="outline" onClick={() => openEditSupplier(row)}>
+                        Edit
+                      </Button>
+                    ) : null}
+                  </div>
+                ),
               },
             ]}
             data={suppliers}
@@ -644,6 +767,96 @@ export function InventoryManageView({ tenantSlug, currency = "GHS" }: InventoryM
             onEmptyAction={canCreate ? openCreateSupplier : undefined}
           />
         </>
+      ) : null}
+
+      {tab === "supplier_contacts" ? (
+        <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
+          <Card className="rounded-2xl border-border/60 shadow-soft">
+            <CardHeader>
+              <CardTitle>Supplier contacts</CardTitle>
+              <CardDescription>Keep buyer, rep, and warehouse contacts attached to the supplier record.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <select
+                  value={selectedSupplierId}
+                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                  className="min-h-touch rounded-xl border border-input bg-card px-3 text-sm"
+                >
+                  <option value="">Choose supplier</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={String(supplier.id)}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input value={contactForm.name} onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Input value={contactForm.role} onChange={(e) => setContactForm({ ...contactForm, role: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <Input value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <textarea
+                  value={contactForm.notes}
+                  onChange={(e) => setContactForm({ ...contactForm, notes: e.target.value })}
+                  className="min-h-24 w-full rounded-xl border border-input bg-card px-3 py-2 text-sm"
+                />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={contactForm.is_primary}
+                  onChange={(e) => setContactForm({ ...contactForm, is_primary: e.target.checked })}
+                />
+                Primary contact
+              </label>
+              <Button className="w-full rounded-xl" disabled={!canUpdate || savingContact} onClick={() => void saveSupplierContact()}>
+                {savingContact ? "Saving…" : "Add contact"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <DataTable
+            columns={[
+              {
+                id: "name",
+                header: "Contact",
+                mobilePrimary: true,
+                cell: (row) => (
+                  <div>
+                    <p className="font-medium">{row.name}</p>
+                    <p className="text-xs text-muted-foreground">{row.role || "Supplier contact"}</p>
+                  </div>
+                ),
+              },
+              { id: "email", header: "Email", cell: (row) => row.email || "—" },
+              { id: "phone", header: "Phone", cell: (row) => row.phone || "—" },
+              { id: "primary", header: "Primary", cell: (row) => (row.is_primary ? "Yes" : "No") },
+            ]}
+            data={supplierContacts}
+            rowKey={(row) => String(row.id)}
+            loading={contactsLoading}
+            emptyIcon={Truck}
+            emptyTitle="No supplier contacts yet"
+            emptyDescription="Add the vendor reps and purchasing contacts you work with most."
+          />
+        </div>
       ) : null}
 
       {tab === "movements" ? (

@@ -104,6 +104,13 @@ export class ApiClient {
     });
   }
 
+  put<T>(path: string, body?: unknown) {
+    return this.request<T>(path, {
+      method: "PUT",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
   delete<T>(path: string) {
     return this.request<T>(path, { method: "DELETE" });
   }

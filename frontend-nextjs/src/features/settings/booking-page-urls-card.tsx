@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Globe, Link2 } from "lucide-react";
+import { Copy, ExternalLink, Globe, Link2 } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { env } from "@/config/env";
+import { SettingsSectionHeader } from "@/features/settings/settings-ui";
 import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import type { Tenant, TenantDomain } from "@/lib/api/types";
@@ -46,49 +47,54 @@ export function BookingPageUrlsCard({ tenantSlug, domains: domainsProp }: Bookin
   const verifiedCustom = domains?.find((d) => d.is_verified);
 
   return (
-    <Card className="max-w-3xl shadow-soft">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Link2 className="h-5 w-5 text-accent" />
-          Booking page URLs
-        </CardTitle>
-        <CardDescription>
-          Share your default workspace link or connect a custom domain (CNAME) for a branded root URL.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border bg-muted/30 p-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+    <Card className="rounded-2xl shadow-soft">
+      <SettingsSectionHeader
+        icon={Link2}
+        title="Booking page URLs"
+        description="Share your workspace link or use a verified custom domain. Add a WhatsApp number under Branding to show a chat button on this page."
+        action={
+          <Button variant="outline" size="sm" className="rounded-xl gap-2" asChild>
+            <a href={workspaceUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" />
+              Open page
+            </a>
+          </Button>
+        }
+      />
+      <CardContent className="space-y-4 pt-0">
+        <div className="rounded-xl border border-border/60 bg-muted/25 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Workspace link
           </p>
-          <p className="mt-1 break-all text-sm font-medium">{workspaceUrl}</p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-2 gap-1 rounded-lg"
-            onClick={() => copyText(workspaceUrl)}
-          >
-            <Copy className="h-3.5 w-3.5" />
-            Copy link
-          </Button>
+          <p className="mt-2 break-all font-mono text-sm">{workspaceUrl}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className="rounded-xl gap-2"
+              onClick={() => copyText(workspaceUrl)}
+            >
+              <Copy className="h-4 w-4" />
+              Copy link
+            </Button>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-dashed border-border p-3 text-sm text-muted-foreground">
-          <p className="flex items-center gap-2 font-medium text-foreground">
-            <Globe className="h-4 w-4 text-accent" />
+        <div className="rounded-xl border border-dashed border-border/60 p-4">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Globe className="h-4 w-4 text-primary" />
             Custom domain
           </p>
           {verifiedCustom ? (
-            <p className="mt-2">
-              Active domain:{" "}
+            <p className="mt-2 text-sm text-muted-foreground">
+              Active:{" "}
               <span className="font-medium text-foreground">{verifiedCustom.domain}</span> — clients
-              see your booking page at the site root.
+              land on your booking page at the site root.
             </p>
           ) : (
-            <p className="mt-2">
+            <p className="mt-2 text-sm text-muted-foreground">
               Point your domain CNAME to this app. Once verified in admin, visitors opening your
-              domain will land on your branded booking page automatically.
+              domain see your branded booking page automatically.
             </p>
           )}
         </div>

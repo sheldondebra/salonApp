@@ -28,7 +28,7 @@ npx shadcn@2.3.0 add button card input label select command popover dialog dropd
 ### `backend-laravel/.env`
 
 ```env
-APP_NAME=SalonApp
+APP_NAME=Schedelux
 APP_URL=http://localhost:8000
 FRONTEND_URL=http://localhost:3000
 
@@ -89,7 +89,7 @@ Optional MNotify keys in `backend-laravel/.env` (without them, SMS is logged in 
 
 ```env
 MNOTIFY_API_KEY=
-MNOTIFY_SENDER_ID=SalonApp
+MNOTIFY_SENDER_ID=Schedelux
 MNOTIFY_BASE_URL=https://api.mnotify.com/api
 MNOTIFY_BALANCE_URL=https://apps.mnotify.net/smsapi/balance
 ```
@@ -101,7 +101,7 @@ php artisan schedule:work
 ```
 
 - **Tenant:** Settings → Notifications (SMS wallet balance, ledger, toggles, delivery log)
-- **Platform:** Admin → SMS → **Reseller hub** — **Sync from MNotify** updates master balance (API key in `.env` only); sync log shows failures
+- **Platform:** Admin → SMS → **Reseller hub** — configure MNotify API (encrypted, masked after save), **Test connection**, **Reload SMS balance**
 - **Dashboard:** Platform overview shows last synced MNotify balance
 - **Demo credits:** `php artisan db:seed --class=SmsResellerSeeder` (500 credits per tenant after migration)
 

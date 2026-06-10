@@ -35,8 +35,8 @@ export function BookingServicePicker({
   }, [services, query]);
 
   return (
-    <div className="space-y-3">
-      <Label>Services — pick one or more</Label>
+    <div className="space-y-4">
+      <Label className="text-base">Services — pick one or more</Label>
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -46,9 +46,11 @@ export function BookingServicePicker({
           className="rounded-xl pl-9"
         />
       </div>
-      <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl border border-border p-2">
+      <div className="max-h-[28rem] overflow-y-auto rounded-2xl border border-border/60 p-3 sm:max-h-[32rem] sm:p-4 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:max-h-[36rem]">
         {filtered.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">No services match your search.</p>
+          <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+            No services match your search.
+          </p>
         ) : (
           filtered.map((s) => {
             const checked = selectedIds.includes(s.id);
@@ -56,8 +58,8 @@ export function BookingServicePicker({
               <label
                 key={s.id}
                 className={cn(
-                  "flex cursor-pointer items-start gap-3 rounded-xl p-3 transition-colors",
-                  checked ? "bg-primary/15 ring-1 ring-primary/30" : "hover:bg-muted/50"
+                  "flex cursor-pointer items-start gap-3 rounded-xl p-4 transition-colors",
+                  checked ? "bg-primary/15 ring-1 ring-primary/30" : "hover:bg-muted/40"
                 )}
               >
                 <input

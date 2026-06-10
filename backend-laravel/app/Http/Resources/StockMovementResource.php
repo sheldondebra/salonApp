@@ -31,6 +31,10 @@ class StockMovementResource extends JsonResource
                 'id' => $this->user->id,
                 'name' => $this->user->name,
             ]),
+            'purchase_order' => $this->whenLoaded('purchaseOrder', fn () => $this->purchaseOrder ? [
+                'uuid' => $this->purchaseOrder->uuid,
+                'reference' => $this->purchaseOrder->reference,
+            ] : null),
         ];
     }
 }

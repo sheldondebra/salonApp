@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
@@ -22,7 +22,10 @@ type UsePaginatedResourceOptions = {
   search?: string;
   activeFilter?: "" | "active" | "inactive";
   page?: number;
+  extraParams?: Record<string, string | undefined>;
 };
+
+const EMPTY_EXTRA_PARAMS: Record<string, string | undefined> = {};
 
 export function usePaginatedResource<T>({
   tenantSlug,
@@ -30,7 +33,12 @@ export function usePaginatedResource<T>({
   search = "",
   activeFilter = "",
   page = 1,
+  extraParams,
 }: UsePaginatedResourceOptions) {
+  const stableExtraParams = extraParams ?? EMPTY_EXTRA_PARAMS;
+  const extraParamsRef = useRef(stableExtraParams);
+  extraParamsRef.current = stableExtraParams;
+  const extraParamsKey = JSON.stringify(stableExtraParams);
   const [items, setItems] = useState<T[]>([]);
   const [meta, setMeta] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,6 +50,9 @@ export function usePaginatedResource<T>({
     if (search) params.set("q", search);
     if (activeFilter === "active") params.set("is_active", "1");
     if (activeFilter === "inactive") params.set("is_active", "0");
+    for (const [key, value] of Object.entries(extraParamsRef.current)) {
+      if (value !== undefined && value !== "") params.set(key, value);
+    }
 
     try {
       const res = await createApiClient(getApiClientOptions()).get<ListResponse<T>>(
@@ -56,7 +67,7 @@ export function usePaginatedResource<T>({
     } finally {
       setLoading(false);
     }
-  }, [tenantSlug, path, search, activeFilter, page]);
+  }, [tenantSlug, path, search, activeFilter, page, extraParamsKey]);
 
   useEffect(() => {
     const t = setTimeout(() => load(), 280);

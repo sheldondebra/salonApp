@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Percent, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  SettingsSaveButton,
+  SettingsSectionHeader,
+  SettingsToggle,
+} from "@/features/settings/settings-ui";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import type { TenantPaymentConfig } from "@/lib/api/types";
@@ -55,77 +60,68 @@ export function PaymentSettingsForm({ tenantSlug }: PaymentSettingsFormProps) {
     }
   }
 
+  if (loading) {
+    return <Skeleton className="h-48 rounded-2xl" />;
+  }
+
   return (
-    <Card className="max-w-3xl shadow-soft">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-accent" />
-          Online payments
-        </CardTitle>
-        <CardDescription>
-          Accept booking deposits or full payment via Paystack and Flutterwave on your public booking page.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={enabled}
-                onChange={(e) => setEnabled(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
-              />
-              <span>
-                <span className="font-medium">Enable online payments</span>
-                <span className="mt-0.5 block text-muted-foreground">
-                  Clients can pay after booking on your public page.
-                </span>
-              </span>
-            </label>
+    <Card className="rounded-2xl shadow-soft">
+      <SettingsSectionHeader
+        icon={CreditCard}
+        title="Online payments"
+        description="Accept deposits or full payment on your public booking page via Paystack or Flutterwave."
+      />
+      <CardContent className="space-y-5 pt-0">
+        <SettingsToggle
+          label="Enable online payments"
+          description="Clients can pay after booking on your public page."
+          checked={enabled}
+          onChange={setEnabled}
+          icon={Wallet}
+        />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="deposit_percent">Deposit %</Label>
-                <Input
-                  id="deposit_percent"
-                  type="number"
-                  min={1}
-                  max={100}
-                  className="rounded-xl"
-                  value={depositPercent}
-                  disabled={!enabled || requireFull}
-                  onChange={(e) => setDepositPercent(Number(e.target.value) || 30)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used when full payment is not required (e.g. 30% to hold the slot).
-                </p>
-              </div>
-            </div>
+        <div
+          className={`space-y-4 rounded-xl border border-border/60 bg-muted/15 p-4 transition-opacity ${
+            enabled ? "" : "pointer-events-none opacity-40"
+          }`}
+        >
+          <div className="max-w-xs space-y-2">
+            <Label htmlFor="deposit_percent" className="flex items-center gap-2">
+              <Percent className="h-4 w-4 text-muted-foreground" />
+              Deposit percentage
+            </Label>
+            <Input
+              id="deposit_percent"
+              type="number"
+              min={1}
+              max={100}
+              className="rounded-xl"
+              value={depositPercent}
+              disabled={!enabled || requireFull}
+              onChange={(e) => setDepositPercent(Number(e.target.value) || 30)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Share of service price required to hold the slot (e.g. 30%).
+            </p>
+          </div>
 
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={requireFull}
-                disabled={!enabled}
-                onChange={(e) => setRequireFull(e.target.checked)}
-                className="h-4 w-4 rounded border-border"
-              />
-              <span>
-                <span className="font-medium">Require full payment online</span>
-                <span className="mt-0.5 block text-muted-foreground">
-                  Clients pay the full service total instead of a deposit.
-                </span>
-              </span>
-            </label>
+          <SettingsToggle
+            label="Require full payment online"
+            description="Clients pay the full service total instead of a deposit."
+            checked={requireFull}
+            disabled={!enabled}
+            onChange={setRequireFull}
+            icon={CreditCard}
+          />
+        </div>
 
-            <Button className="rounded-xl" onClick={save} disabled={saving}>
-              {saving ? "Saving…" : "Save payment settings"}
-            </Button>
-          </>
-        )}
+        <div className="flex justify-end border-t border-border/60 pt-4">
+          <SettingsSaveButton
+            saving={saving}
+            label="Save payment settings"
+            onClick={() => void save()}
+          />
+        </div>
       </CardContent>
     </Card>
   );

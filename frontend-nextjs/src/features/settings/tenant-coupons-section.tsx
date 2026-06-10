@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Tag } from "lucide-react";
+import { Loader2, Plus, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { SettingsSectionHeader } from "@/features/settings/settings-ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -133,18 +134,13 @@ export function TenantCouponsSection({
   }
 
   return (
-    <Card className="max-w-5xl shadow-soft">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Tag className="h-5 w-5 text-accent" />
-          Booking coupons
-        </CardTitle>
-        <CardDescription>
-          Discount codes clients apply when paying for appointments. Validation and redemption run
-          on the server at checkout.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className="rounded-2xl shadow-soft">
+      <SettingsSectionHeader
+        icon={Tag}
+        title="Booking coupons"
+        description="Discount codes clients apply at checkout. Validation runs on the server."
+      />
+      <CardContent className="space-y-6 pt-0">
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label>Code</Label>
@@ -236,10 +232,15 @@ export function TenantCouponsSection({
           </div>
           <div className="sm:col-span-2">
             <Button
-              className="rounded-xl"
+              className="rounded-xl gap-2"
               onClick={() => void createCoupon()}
               disabled={saving || !code.trim()}
             >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               {saving ? "Creating…" : "Create coupon"}
             </Button>
           </div>

@@ -28,11 +28,13 @@ class ProductResource extends JsonResource
             'sku' => $this->sku,
             'barcode' => $this->barcode,
             'description' => $this->description,
+            'store_description' => $this->store_description,
             'image_url' => $this->image_url,
             'cost_cents' => $this->cost_cents,
             'retail_cents' => $this->retail_cents,
             'low_stock_threshold' => $threshold,
             'is_active' => $this->is_active,
+            'is_store_visible' => $this->is_store_visible,
             'total_quantity' => $totalQty,
             'is_low_stock' => $totalQty <= $threshold,
             'category' => $this->whenLoaded('category', fn () => [

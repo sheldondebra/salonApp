@@ -10,7 +10,7 @@ export default function NotFound() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <Scissors className="h-5 w-5" />
           </span>
-          SalonApp
+          Schedelux
         </Link>
       </header>
 

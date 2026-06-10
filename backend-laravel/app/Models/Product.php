@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\FixesPgsqlBooleans;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, FixesPgsqlBooleans;
 
     protected $fillable = [
         'tenant_id',
@@ -19,17 +20,20 @@ class Product extends Model
         'sku',
         'barcode',
         'description',
+        'store_description',
         'image_url',
         'cost_cents',
         'retail_cents',
         'low_stock_threshold',
         'is_active',
+        'is_store_visible',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_store_visible' => 'boolean',
         ];
     }
 
@@ -51,5 +55,10 @@ class Product extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(ProductBundleItem::class);
     }
 }

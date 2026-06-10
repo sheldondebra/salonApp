@@ -34,7 +34,7 @@ export default function MarketingPage() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
             <Scissors className="h-5 w-5" />
           </span>
-          SalonApp
+          Schedelux
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           <a href="#features" className="hover:text-foreground">
@@ -120,7 +120,7 @@ export default function MarketingPage() {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} SalonApp. Premium multi-tenant beauty booking.
+        © {new Date().getFullYear()} Schedelux. Premium multi-tenant beauty booking.
       </footer>
     </div>
   );

@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Service;
+use App\Models\ServiceAddon;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantContext;
@@ -24,6 +25,7 @@ class PosService
     public function __construct(
         protected CouponService $coupons,
         protected InventoryService $inventory,
+        protected PosDiscountPolicyService $discountPolicy,
     ) {}
 
     /**
@@ -38,11 +40,12 @@ class PosService
         int $serviceChargeCents = 0,
         int $tipCents = 0,
         ?string $couponCode = null,
+        int $manualDiscountCents = 0,
     ): array {
         $lines = $this->resolveLineItems($tenantId, $items);
         $subtotal = collect($lines)->sum('line_total_cents');
 
-        $discount = 0;
+        $couponDiscount = 0;
         if ($couponCode) {
             $serviceIds = collect($lines)
                 ->where('item_type', SaleItemType::Service)
@@ -61,18 +64,26 @@ class PosService
                 throw new InvalidArgumentException($result['message'] ?? 'Invalid coupon.');
             }
 
-            $discount = $result['discount_cents'];
+            $couponDiscount = $result['discount_cents'];
         }
 
+        $manualDiscountCents = max(0, min($manualDiscountCents, $subtotal));
+        $discount = $couponDiscount + $manualDiscountCents;
         $total = max(0, $subtotal - $discount + $taxCents + $serviceChargeCents + $tipCents);
+
+        $tenant = Tenant::query()->findOrFail($tenantId);
+        $policy = $this->discountPolicy->analyze($tenant, $subtotal, $couponDiscount, $manualDiscountCents);
 
         return [
             'subtotal_cents' => $subtotal,
             'discount_cents' => $discount,
+            'coupon_discount_cents' => $couponDiscount,
+            'manual_discount_cents' => $manualDiscountCents,
             'tax_cents' => $taxCents,
             'service_charge_cents' => $serviceChargeCents,
             'tip_cents' => $tipCents,
             'total_cents' => $total,
+            'discount_policy' => $policy,
         ];
     }
 
@@ -86,6 +97,8 @@ class PosService
      *   tax_cents?: int,
      *   service_charge_cents?: int,
      *   tip_cents?: int,
+     *   manual_discount_cents?: int,
+     *   approval_request_uuid?: string|null,
      *   payment_method: string,
      *   notes?: string|null,
      *   currency?: string,
@@ -110,7 +123,7 @@ class PosService
             $tipCents = max(0, (int) ($payload['tip_cents'] ?? 0));
 
             $coupon = null;
-            $discountCents = 0;
+            $couponDiscountCents = 0;
             $couponCode = isset($payload['coupon_code']) ? trim((string) $payload['coupon_code']) : '';
 
             if ($couponCode !== '') {
@@ -131,10 +144,23 @@ class PosService
                     throw new InvalidArgumentException($result['message'] ?? 'Invalid coupon.');
                 }
 
-                $discountCents = $result['discount_cents'];
+                $couponDiscountCents = $result['discount_cents'];
                 $coupon = $result['coupon'];
             }
 
+            $manualDiscountCents = max(0, min((int) ($payload['manual_discount_cents'] ?? 0), $subtotal));
+            $tenant = Tenant::query()->findOrFail($tenantId);
+
+            $this->discountPolicy->assertAllowed(
+                $tenant,
+                $cashier,
+                $subtotal,
+                $couponDiscountCents,
+                $manualDiscountCents,
+                $payload['approval_request_uuid'] ?? null,
+            );
+
+            $discountCents = $couponDiscountCents + $manualDiscountCents;
             $totalCents = max(0, $subtotal - $discountCents + $taxCents + $serviceChargeCents + $tipCents);
 
             $appointmentId = null;
@@ -145,7 +171,6 @@ class PosService
                 $appointmentId = $appointment->id;
             }
 
-            $tenant = Tenant::query()->findOrFail($tenantId);
             $currency = $payload['currency'] ?? $tenant->currency ?? 'GHS';
 
             $sale = Sale::query()->create([
@@ -169,6 +194,9 @@ class PosService
                 'metadata' => [
                     'split_payments' => [],
                     'tips_recorded' => $tipCents > 0,
+                    'coupon_discount_cents' => $couponDiscountCents,
+                    'manual_discount_cents' => $manualDiscountCents,
+                    'approval_request_uuid' => $payload['approval_request_uuid'] ?? null,
                 ],
                 'completed_at' => now(),
             ]);
@@ -182,6 +210,7 @@ class PosService
                     'item_type' => $line['item_type'],
                     'service_id' => $line['service_id'] ?? null,
                     'product_id' => $line['product_id'] ?? null,
+                    'service_addon_id' => $line['service_addon_id'] ?? null,
                     'name' => $line['name'],
                     'quantity' => $line['quantity'],
                     'unit_price_cents' => $line['unit_price_cents'],
@@ -263,7 +292,28 @@ class PosService
                     'item_type' => SaleItemType::Service,
                     'service_id' => $service->id,
                     'product_id' => null,
+                    'service_addon_id' => null,
                     'name' => $service->name,
+                    'quantity' => $qty,
+                    'unit_price_cents' => $unit,
+                    'line_total_cents' => $unit * $qty,
+                ];
+            } elseif ($type === SaleItemType::Addon) {
+                $addon = ServiceAddon::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereBool('is_active')
+                    ->with('service:id,name')
+                    ->findOrFail($item['service_addon_id'] ?? 0);
+
+                $unit = (int) $addon->price_cents;
+                $lines[] = [
+                    'item_type' => SaleItemType::Addon,
+                    'service_id' => $addon->service_id,
+                    'product_id' => null,
+                    'service_addon_id' => $addon->id,
+                    'name' => $addon->service?->name
+                        ? "{$addon->service->name} · {$addon->name}"
+                        : $addon->name,
                     'quantity' => $qty,
                     'unit_price_cents' => $unit,
                     'line_total_cents' => $unit * $qty,
@@ -279,6 +329,7 @@ class PosService
                     'item_type' => SaleItemType::Product,
                     'service_id' => null,
                     'product_id' => $product->id,
+                    'service_addon_id' => null,
                     'name' => $product->name,
                     'quantity' => $qty,
                     'unit_price_cents' => $unit,

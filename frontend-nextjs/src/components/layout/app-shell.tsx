@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { SkipToContent } from "@/components/shared/skip-to-content";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
-import type { ShellNavItem } from "./shell-types";
+import type { ShellNavItem, ShellNavSection } from "./shell-types";
 
 type AppShellProps = {
   brand: {
@@ -14,23 +14,29 @@ type AppShellProps = {
     href?: string;
     logo: React.ReactNode;
   };
-  navItems: ShellNavItem[];
+  navSections?: ShellNavSection[];
+  navItems?: ShellNavItem[];
   sidebarFooter?: React.ReactNode;
   mobileTitle: string;
   mobileSubtitle?: string;
   children: React.ReactNode;
   header?: React.ReactNode;
+  toolbar?: React.ReactNode;
+  bottomNav?: React.ReactNode;
   mainClassName?: string;
 };
 
 export function AppShell({
   brand,
+  navSections,
   navItems,
   sidebarFooter,
   mobileTitle,
   mobileSubtitle,
   children,
   header,
+  toolbar,
+  bottomNav,
   mainClassName,
 }: AppShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -52,7 +58,7 @@ export function AppShell({
     <div className="flex min-h-screen bg-background">
       <SkipToContent />
       <aside className="hidden lg:flex lg:shrink-0">
-        <Sidebar brand={brand} items={navItems} footer={sidebarFooter} />
+        <Sidebar brand={brand} sections={navSections} items={navItems} footer={sidebarFooter} />
       </aside>
 
       {menuOpen ? (
@@ -66,13 +72,14 @@ export function AppShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 shadow-elevated transition-transform duration-200 lg:hidden",
+          "fixed inset-y-0 left-0 z-50 overflow-hidden rounded-r-2xl shadow-elevated transition-transform duration-200 ease-out lg:hidden",
           menuOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-hidden={!menuOpen}
       >
         <Sidebar
           brand={brand}
+          sections={navSections}
           items={navItems}
           footer={sidebarFooter}
           onNavigate={() => setMenuOpen(false)}
@@ -90,11 +97,19 @@ export function AppShell({
         <main
           id="main-content"
           tabIndex={-1}
-          className={cn("flex-1 space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-10", mainClassName)}
+          className={cn(
+            "flex-1 space-y-6 p-4 sm:space-y-8 sm:p-6 md:p-10",
+            bottomNav && "pb-24 lg:pb-10",
+            mainClassName
+          )}
         >
+          {toolbar ? <div className="hidden lg:block -mx-4 sm:-mx-6 md:-mx-10 mb-2">{toolbar}</div> : null}
           {header}
           {children}
         </main>
+        {bottomNav ? (
+          <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">{bottomNav}</div>
+        ) : null}
       </div>
     </div>
   );

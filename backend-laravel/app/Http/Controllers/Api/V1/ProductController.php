@@ -77,11 +77,13 @@ class ProductController extends Controller
             'sku' => ['nullable', 'string', 'max:80', Rule::unique('products', 'sku')->where('tenant_id', $tenantId)],
             'barcode' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'store_description' => ['nullable', 'string', 'max:5000'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'cost_cents' => ['required', 'integer', 'min:0'],
             'retail_cents' => ['required', 'integer', 'min:0'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'is_store_visible' => ['sometimes', 'boolean'],
             'initial_stock' => ['nullable', 'array'],
             'initial_stock.*.location_id' => ['required', 'integer', Rule::exists('locations', 'id')->where('tenant_id', $tenantId)],
             'initial_stock.*.quantity' => ['required', 'integer', 'min:0'],
@@ -125,11 +127,13 @@ class ProductController extends Controller
             'sku' => ['nullable', 'string', 'max:80', Rule::unique('products', 'sku')->where('tenant_id', $tenantId)->ignore($product->id)],
             'barcode' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:5000'],
+            'store_description' => ['nullable', 'string', 'max:5000'],
             'image_url' => ['nullable', 'string', 'max:2048'],
             'cost_cents' => ['sometimes', 'integer', 'min:0'],
             'retail_cents' => ['sometimes', 'integer', 'min:0'],
             'low_stock_threshold' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
+            'is_store_visible' => ['sometimes', 'boolean'],
         ]);
 
         $product->update($validated);
@@ -194,5 +198,18 @@ class ProductController extends Controller
         if ($product->tenant_id !== TenantContext::id()) {
             abort(404);
         }
+    }
+
+    public function barcode(Request $request, string $tenantSlug, string $code): JsonResponse
+    {
+        $product = Product::query()
+            ->with(['category', 'supplier', 'stocks.location'])
+            ->where('barcode', $code)
+            ->firstOrFail();
+
+        $this->ensureTenant($product);
+        $this->authorize('view', $product);
+
+        return (new ProductResource($product))->response();
     }
 }

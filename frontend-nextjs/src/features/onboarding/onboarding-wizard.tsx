@@ -375,7 +375,7 @@ export function OnboardingWizard() {
         active={launching}
         onDone={() => {
           setLaunching(false);
-          toast.success("Welcome to SalonApp!");
+          toast.success("Welcome to Schedelux!");
           router.push(pendingRedirect ?? "/");
         }}
       />
@@ -385,7 +385,7 @@ export function OnboardingWizard() {
             <AuthBackLink href="/" label="Back to home" />
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <Scissors className="h-5 w-5 text-accent" />
-              SalonApp — Set up your salon
+              Schedelux — Set up your salon
             </Link>
           </div>
         </header>

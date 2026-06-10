@@ -110,6 +110,8 @@ class BookingService
                     $totalMinutes,
                     $data['staff_member_id'] ?? null,
                     $data['location_id'] ?? null,
+                    null,
+                    $services->pluck('id')->all(),
                 )) {
                     throw ValidationException::withMessages([
                         'starts_at' => ['This time slot is no longer available. Join the waitlist or pick another time.'],
@@ -211,6 +213,7 @@ class BookingService
                 $staffMemberId,
                 $locationId,
                 $appointment->id,
+                $appointment->service_id ? [$appointment->service_id] : [],
             )) {
                 throw ValidationException::withMessages([
                     'starts_at' => ['This time slot is no longer available. Choose another time.'],

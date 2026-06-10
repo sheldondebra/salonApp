@@ -60,14 +60,17 @@ class SaleController extends Controller
             'client_user_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'appointment_uuid' => ['nullable', 'uuid'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', Rule::in(['service', 'product'])],
+            'items.*.type' => ['required', Rule::in(['service', 'product', 'addon'])],
             'items.*.service_id' => ['required_if:items.*.type,service', 'integer'],
             'items.*.product_id' => ['required_if:items.*.type,product', 'integer'],
+            'items.*.service_addon_id' => ['required_if:items.*.type,addon', 'integer'],
             'items.*.quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
             'coupon_code' => ['nullable', 'string', 'max:50'],
             'tax_cents' => ['nullable', 'integer', 'min:0'],
             'service_charge_cents' => ['nullable', 'integer', 'min:0'],
             'tip_cents' => ['nullable', 'integer', 'min:0'],
+            'manual_discount_cents' => ['nullable', 'integer', 'min:0'],
+            'approval_request_uuid' => ['nullable', 'uuid'],
             'payment_method' => ['required', Rule::in(['cash', 'card', 'mobile_money', 'other'])],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -107,5 +110,44 @@ class SaleController extends Controller
             'discount_cents' => $result['discount_cents'],
             'final_amount_cents' => $result['final_amount_cents'],
         ]);
+    }
+
+    public function preview(Request $request): JsonResponse
+    {
+        $this->authorize('create', Sale::class);
+
+        $tenantId = TenantContext::id();
+
+        $validated = $request->validate([
+            'location_id' => ['required', 'integer', Rule::exists('locations', 'id')->where('tenant_id', $tenantId)],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.type' => ['required', Rule::in(['service', 'product', 'addon'])],
+            'items.*.service_id' => ['required_if:items.*.type,service', 'integer'],
+            'items.*.product_id' => ['required_if:items.*.type,product', 'integer'],
+            'items.*.service_addon_id' => ['required_if:items.*.type,addon', 'integer'],
+            'items.*.quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'coupon_code' => ['nullable', 'string', 'max:50'],
+            'tax_cents' => ['nullable', 'integer', 'min:0'],
+            'service_charge_cents' => ['nullable', 'integer', 'min:0'],
+            'tip_cents' => ['nullable', 'integer', 'min:0'],
+            'manual_discount_cents' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        try {
+            $totals = $this->pos->previewTotals(
+                $tenantId,
+                (int) $validated['location_id'],
+                $validated['items'],
+                (int) ($validated['tax_cents'] ?? 0),
+                (int) ($validated['service_charge_cents'] ?? 0),
+                (int) ($validated['tip_cents'] ?? 0),
+                $validated['coupon_code'] ?? null,
+                (int) ($validated['manual_discount_cents'] ?? 0),
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        return response()->json(['data' => $totals]);
     }
 }

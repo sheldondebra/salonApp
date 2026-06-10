@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Combobox } from "@/components/ui/combobox";
+import { BranchSelect, CustomerSelect, StaffSelect } from "@/components/shared/entity-selects";
+import { SearchInput } from "@/components/shared/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BookingConfirmSummary } from "@/features/booking/booking-confirm-summary";
 import { BookingDateStrip } from "@/features/booking/booking-date-strip";
@@ -23,7 +24,6 @@ import type {
   Service,
   StaffMember,
   TenantBookingConfig,
-  TenantClient,
 } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -87,8 +87,6 @@ export function StaffBookingPanel({
   const [clientUserId, setClientUserId] = useState("");
   const [selectedClientLabel, setSelectedClientLabel] = useState("");
   const [clientSearch, setClientSearch] = useState("");
-  const [clientOptions, setClientOptions] = useState<{ value: string; label: string }[]>([]);
-  const [loadingClients, setLoadingClients] = useState(false);
   const [walkInName, setWalkInName] = useState("");
   const [walkInEmail, setWalkInEmail] = useState("");
   const [walkInPhone, setWalkInPhone] = useState("");
@@ -138,6 +136,31 @@ export function StaffBookingPanel({
     loadCatalog();
   }, [loadCatalog]);
 
+  const loadBookableStaff = useCallback(async () => {
+    if (!serviceIds.length) return;
+    try {
+      const client = createApiClient(getApiClientOptions());
+      const params = new URLSearchParams({ per_page: "100", is_active: "1", is_bookable: "1" });
+      serviceIds.forEach((id, i) => params.set(`service_ids[${i}]`, String(id)));
+      const staffRes = await client.get<{ data: StaffMember[] }>(
+        `/${tenantSlug}/staff-members?${params}`
+      );
+      const staffRows = normalizeList(staffRes).filter((m) => m.is_bookable !== false);
+      setStaff(staffRows);
+      if (staffId && !staffRows.some((m) => String(m.id) === staffId)) {
+        setStaffId("");
+      }
+    } catch {
+      toast.error("Could not load team for selected services");
+    }
+  }, [tenantSlug, serviceIds, staffId]);
+
+  useEffect(() => {
+    if (serviceIds.length > 0) {
+      void loadBookableStaff();
+    }
+  }, [serviceIds, loadBookableStaff]);
+
   const loadSlots = useCallback(async () => {
     if (!serviceIds.length) return;
     setLoadingSlots(true);
@@ -169,42 +192,7 @@ export function StaffBookingPanel({
     }
   }, [currentStep, loadSlots, serviceIds.length]);
 
-  useEffect(() => {
-    if (currentStep !== "client" || clientMode !== "existing") return;
-    const q = clientSearch.trim();
-    if (q.length < 2) {
-      setClientOptions([]);
-      return;
-    }
-    const t = setTimeout(async () => {
-      setLoadingClients(true);
-      try {
-        const res = await createApiClient(getApiClientOptions()).get<{ data: TenantClient[] }>(
-          `/${tenantSlug}/clients?q=${encodeURIComponent(q)}&per_page=20&is_active=1`
-        );
-        const rows = normalizeList(res);
-        setClientOptions(rows.map((c) => ({ value: String(c.id), label: `${c.name} · ${c.email}` })));
-      } catch {
-        setClientOptions([]);
-      } finally {
-        setLoadingClients(false);
-      }
-    }, 300);
-    return () => clearTimeout(t);
-  }, [clientSearch, clientMode, currentStep, tenantSlug]);
-
-  const staffOptions = useMemo(
-    () => [
-      { value: "", label: "Any available stylist" },
-      ...staff.map((m) => ({ value: String(m.id), label: m.title ? `${m.display_name} · ${m.title}` : m.display_name })),
-    ],
-    [staff]
-  );
-
-  const locationOptions = useMemo(
-    () => locations.map((l) => ({ value: String(l.id), label: l.label || l.name })),
-    [locations]
-  );
+  const staffSelectValue = staffId || "__any__";
 
   function toggleService(id: number) {
     setServiceIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -329,12 +317,13 @@ export function StaffBookingPanel({
         {currentStep === "staff" ? (
           <div className="space-y-2">
             <Label>Assign team member</Label>
-            <Combobox
-              options={staffOptions}
-              value={staffId}
-              onValueChange={setStaffId}
+            <StaffSelect
+              tenantSlug={tenantSlug}
+              items={staff}
+              value={staffSelectValue}
+              onValueChange={(v) => setStaffId(v === "__any__" ? "" : v)}
+              optionalLabel="Any available stylist"
               placeholder="Choose stylist (optional)"
-              searchPlaceholder="Search team…"
             />
           </div>
         ) : null}
@@ -342,12 +331,12 @@ export function StaffBookingPanel({
         {currentStep === "location" ? (
           <div className="space-y-2">
             <Label>Branch</Label>
-            <Combobox
-              options={locationOptions}
+            <BranchSelect
+              tenantSlug={tenantSlug}
+              items={locations}
               value={locationId}
               onValueChange={setLocationId}
               placeholder="Select branch"
-              searchPlaceholder="Search branches…"
             />
           </div>
         ) : null}
@@ -405,30 +394,30 @@ export function StaffBookingPanel({
               </Button>
             </div>
             {clientMode === "existing" ? (
-              <div className="space-y-2">
-                <Label>Search client</Label>
-                <Input
-                  className="rounded-xl"
-                  placeholder="Type name or email…"
-                  value={clientSearch}
-                  onChange={(e) => setClientSearch(e.target.value)}
-                />
-                {loadingClients ? (
-                  <p className="text-xs text-muted-foreground">Searching…</p>
-                ) : clientOptions.length > 0 ? (
-                  <Combobox
-                    options={clientOptions}
-                    value={clientUserId}
-                    onValueChange={(value) => {
-                      setClientUserId(value);
-                      const match = clientOptions.find((o) => o.value === value);
-                      setSelectedClientLabel(match?.label ?? "");
-                    }}
-                    placeholder="Select client"
-                    searchPlaceholder="Filter results…"
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Search client</Label>
+                  <SearchInput
+                    value={clientSearch}
+                    onChange={setClientSearch}
+                    placeholder="Type name or email…"
                   />
-                ) : clientSearch.trim().length >= 2 ? (
-                  <p className="text-sm text-muted-foreground">No clients found. Try walk-in or add them under Clients.</p>
+                </div>
+                {clientSearch.trim().length >= 2 ? (
+                  <div className="space-y-2">
+                    <Label>Select client</Label>
+                    <CustomerSelect
+                      tenantSlug={tenantSlug}
+                      value={clientUserId}
+                      onValueChange={setClientUserId}
+                      searchQuery={clientSearch}
+                      onSearchQueryChange={setClientSearch}
+                      onCustomerPick={(client) => {
+                        setSelectedClientLabel(client ? `${client.name} · ${client.email}` : "");
+                      }}
+                      placeholder="Choose from results"
+                    />
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">Enter at least 2 characters to search.</p>
                 )}

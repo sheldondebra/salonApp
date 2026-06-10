@@ -11,12 +11,12 @@ type BookingStepIndicatorProps = {
 export function BookingStepIndicator({ steps, currentIndex }: BookingStepIndicatorProps) {
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between gap-1">
+      <div className="flex items-center justify-between gap-2 px-0 sm:gap-4 lg:gap-5">
         {steps.map((step, i) => {
           const done = i < currentIndex;
           const active = i === currentIndex;
           return (
-            <div key={step.id} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+            <div key={step.id} className="flex min-w-0 flex-1 flex-col items-center gap-2">
               <div className="flex w-full items-center">
                 {i > 0 ? (
                   <div
@@ -30,7 +30,7 @@ export function BookingStepIndicator({ steps, currentIndex }: BookingStepIndicat
                 )}
                 <div
                   className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors sm:h-10 sm:w-10",
                     done && "bg-primary text-primary-foreground",
                     active && "bg-accent text-accent-foreground ring-2 ring-accent/30",
                     !done && !active && "bg-muted text-muted-foreground"
@@ -52,7 +52,7 @@ export function BookingStepIndicator({ steps, currentIndex }: BookingStepIndicat
               </div>
               <span
                 className={cn(
-                  "hidden max-w-[4.5rem] truncate text-center text-[10px] font-medium uppercase tracking-wide sm:block",
+                  "hidden max-w-[5.5rem] truncate text-center text-[11px] font-medium uppercase tracking-wide sm:block",
                   active ? "text-foreground" : "text-muted-foreground"
                 )}
               >
@@ -62,7 +62,7 @@ export function BookingStepIndicator({ steps, currentIndex }: BookingStepIndicat
           );
         })}
       </div>
-      <p className="mt-3 text-center text-sm font-medium sm:hidden">
+      <p className="mt-4 text-center text-sm font-medium sm:hidden">
         Step {currentIndex + 1} of {steps.length}: {steps[currentIndex]?.label}
       </p>
     </div>

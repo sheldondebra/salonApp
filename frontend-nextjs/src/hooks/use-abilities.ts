@@ -19,7 +19,7 @@ export function useAbilities(tenantSlug: string) {
   useEffect(() => {
     let cancelled = false;
 
-    createApiClient(getApiClientOptions())
+    createApiClient(getApiClientOptions(undefined, tenantSlug))
       .get<AbilitiesResponse>(`/${tenantSlug}/auth/abilities`)
       .then((res) => {
         if (!cancelled) {

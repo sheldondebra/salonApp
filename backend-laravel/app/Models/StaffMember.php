@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\StaffEmploymentMode;
 use App\Models\Concerns\BelongsToTenant;
 use App\Models\Concerns\FixesPgsqlBooleans;
 use Illuminate\Database\Eloquent\Model;
@@ -36,6 +37,8 @@ class StaffMember extends Model
         'is_active',
         'employment_status',
         'employment_type',
+        'employment_mode',
+        'self_employed_settings',
         'hire_date',
         'color_code',
     ];
@@ -45,6 +48,8 @@ class StaffMember extends Model
         return [
             'is_bookable' => 'boolean',
             'is_active' => 'boolean',
+            'employment_mode' => StaffEmploymentMode::class,
+            'self_employed_settings' => 'array',
             'hire_date' => 'date',
         ];
     }
@@ -116,5 +121,25 @@ class StaffMember extends Model
     public function workingHours(): HasMany
     {
         return $this->hasMany(StaffWorkingHour::class)->orderBy('day_of_week');
+    }
+
+    public function breaks(): HasMany
+    {
+        return $this->hasMany(StaffBreak::class);
+    }
+
+    public function timeOffRequests(): HasMany
+    {
+        return $this->hasMany(StaffTimeOffRequest::class);
+    }
+
+    public function payrollProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(StaffPayrollProfile::class);
+    }
+
+    public function chairRentalProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ChairRentalProfile::class);
     }
 }

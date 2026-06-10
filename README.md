@@ -1,4 +1,4 @@
-# SalonApp — Multi-Tenant Beauty Booking SaaS
+# Schedelux — Multi-Tenant Beauty Booking SaaS
 
 Production-ready monorepo foundation for a Fresha-style beauty booking platform.
 
@@ -8,7 +8,7 @@ Production-ready monorepo foundation for a Fresha-style beauty booking platform.
 salonapp/
 ├── backend-laravel/     # Laravel 11 REST API (Sanctum, RBAC, multi-tenant)
 ├── frontend-nextjs/       # Next.js 14 web app (portals, Shadcn, Tailwind)
-├── mobile-reactnative/  # Expo React Native app (Batch 36 foundation)
+├── salonmobileapp/      # Expo React Native app (Schedelux mobile)
 ├── docs/                # Architecture & setup guides
 └── docker-compose.yml   # Local PostgreSQL + Redis
 ```
@@ -146,13 +146,13 @@ Redirect URIs must match `APP_URL/api/v1/auth/social/{provider}/callback`. Apple
 ### 4. Mobile (Expo)
 
 ```bash
-cd mobile-reactnative
+cd salonmobileapp
 cp .env.example .env
 npm install
 npm start
 ```
 
-See `mobile-reactnative/README.md` for LAN API URL setup and role-based portals.
+See `salonmobileapp/README.md` for LAN API URL setup and role-based portals.
 
 ## Feature overview
 

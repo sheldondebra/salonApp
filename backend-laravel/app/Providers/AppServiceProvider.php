@@ -10,7 +10,10 @@ use App\Integrations\Payments\PaymentGatewayManager;
 use App\Integrations\Sms\MNotifyGateway;
 use App\Integrations\Sms\SmsGatewayContract;
 use App\Models\Appointment;
+use App\Models\CashDrawerSession;
 use App\Models\Location;
+use App\Models\PaymentRequest;
+use App\Models\TenantPaymentSetting;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\ProductCategory;
@@ -21,8 +24,12 @@ use App\Models\Supplier;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\AppointmentPolicy;
+use App\Policies\CashDrawerSessionPolicy;
 use App\Policies\DashboardPolicy;
+use App\Policies\FinancePolicy;
 use App\Policies\LocationPolicy;
+use App\Policies\PaymentRequestPolicy;
+use App\Policies\TenantPaymentSettingPolicy;
 use App\Policies\ProductCategoryPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\ServiceCategoryPolicy;
@@ -57,10 +64,13 @@ class AppServiceProvider extends ServiceProvider
         PgsqlBoolean::registerMacros();
         AdminRouteBindings::register();
 
+        Gate::policy(CashDrawerSession::class, CashDrawerSessionPolicy::class);
         Gate::policy(Appointment::class, AppointmentPolicy::class);
         Gate::policy(Service::class, ServicePolicy::class);
         Gate::policy(ServiceCategory::class, ServiceCategoryPolicy::class);
         Gate::policy(StaffMember::class, StaffMemberPolicy::class);
+        Gate::policy(PaymentRequest::class, PaymentRequestPolicy::class);
+        Gate::policy(TenantPaymentSetting::class, TenantPaymentSettingPolicy::class);
         Gate::policy(Location::class, LocationPolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(ProductCategory::class, ProductCategoryPolicy::class);
@@ -70,5 +80,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(User::class, UserPolicy::class);
 
         Gate::define('viewAnalytics', [DashboardPolicy::class, 'viewAnalytics']);
+        Gate::define('viewFinance', [FinancePolicy::class, 'viewFinance']);
+        Gate::define('refundFinance', [FinancePolicy::class, 'refundFinance']);
+        Gate::define('adjustFinance', [FinancePolicy::class, 'adjustFinance']);
+        Gate::define('viewFinancePayroll', [FinancePolicy::class, 'viewFinancePayroll']);
+        Gate::define('viewOwnFinancePayroll', [FinancePolicy::class, 'viewOwnFinancePayroll']);
     }
 }

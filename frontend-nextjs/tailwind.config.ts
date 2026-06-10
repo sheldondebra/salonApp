@@ -6,7 +6,23 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-sans)", "var(--font-inter)", "Inter", "system-ui", "sans-serif"],
+      },
+      fontSize: {
+        display: ["2rem", { lineHeight: "2.5rem", fontWeight: "700" }],
+        title: ["1.25rem", { lineHeight: "1.75rem", fontWeight: "600" }],
+        body: ["1rem", { lineHeight: "1.5rem", fontWeight: "400" }],
+        caption: ["0.875rem", { lineHeight: "1.25rem", fontWeight: "500" }],
+        label: ["0.75rem", { lineHeight: "1rem", fontWeight: "600", letterSpacing: "0.04em" }],
+      },
+      spacing: {
+        "beauty-xs": "var(--spacing-xs)",
+        "beauty-sm": "var(--spacing-sm)",
+        "beauty-md": "var(--spacing-md)",
+        "beauty-lg": "var(--spacing-lg)",
+        "beauty-xl": "var(--spacing-xl)",
+        "beauty-2xl": "var(--spacing-2xl)",
+        "beauty-3xl": "var(--spacing-3xl)",
       },
       colors: {
         background: "hsl(var(--background))",
@@ -35,7 +51,22 @@ const config: Config = {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
-        destructive: "hsl(var(--destructive))",
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -59,18 +90,33 @@ const config: Config = {
         brand: {
           primary: "#F8BBD0",
           accent: "#E879A6",
+          deep: "#DB2777",
           surface: "#FFF7FA",
           border: "#F3D6E3",
           text: "#1F2937",
+          muted: "#6B7280",
         },
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--radius-lg)",
+        md: "var(--radius-md)",
+        sm: "var(--radius-sm)",
+        xl: "var(--radius-xl)",
+        "2xl": "var(--radius-2xl)",
+        button: "var(--radius-button)",
+        input: "var(--radius-input)",
+        card: "var(--radius-card)",
+        modal: "var(--radius-modal)",
       },
       boxShadow: {
-        soft: "0 4px 24px -4px rgba(232, 121, 166, 0.12), 0 2px 8px -2px rgba(31, 41, 55, 0.06)",
+        soft: "var(--shadow-soft)",
+        elevated: "var(--shadow-elevated)",
+      },
+      minHeight: {
+        touch: "44px",
+      },
+      minWidth: {
+        touch: "44px",
       },
     },
   },

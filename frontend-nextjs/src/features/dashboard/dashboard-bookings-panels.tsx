@@ -82,7 +82,7 @@ export function DashboardBookingsPanels({
         return (
           <Card
             key={panel.key}
-            className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft transition-shadow hover:shadow-md"
+            className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft transition-shadow active:scale-[0.99] sm:hover:shadow-md"
           >
             <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-2">
               <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", panel.accent)}>

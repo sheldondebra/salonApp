@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Upload } from "lucide-react";
+import { ExternalLink, Palette, Upload } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { SettingsSaveButton, SettingsSectionHeader } from "@/features/settings/settings-ui";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -127,20 +128,21 @@ export function BrandingSettingsForm({ tenantSlug, tenant, onTenantUpdated }: Br
   const bookPreview = `/${tenantSlug}/book`;
 
   return (
-    <Card className="max-w-3xl shadow-soft">
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
-        <div>
-          <CardTitle>Public booking page</CardTitle>
-          <CardDescription>Logo, colors, contact info, and hours shown to clients</CardDescription>
-        </div>
-        <Button variant="outline" size="sm" className="gap-1 rounded-xl" asChild>
-          <a href={bookPreview} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4" />
-            Preview page
-          </a>
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className="rounded-2xl shadow-soft">
+      <SettingsSectionHeader
+        icon={Palette}
+        title="Public booking page"
+        description="Logo, colors, contact info, and hours shown to clients."
+        action={
+          <Button variant="outline" size="sm" className="gap-2 rounded-xl" asChild>
+            <a href={bookPreview} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" />
+              Preview
+            </a>
+          </Button>
+        }
+      />
+      <CardContent className="space-y-6 pt-0">
         <BrandingLivePreview
           tenantName={tenant?.name ?? "Your salon"}
           tagline={tagline}
@@ -203,8 +205,18 @@ export function BrandingSettingsForm({ tenantSlug, tenant, onTenantUpdated }: Br
             <Input className="rounded-xl" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>WhatsApp</Label>
-            <Input className="rounded-xl" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+233…" />
+            <Label htmlFor="branding-whatsapp">WhatsApp chat number</Label>
+            <Input
+              id="branding-whatsapp"
+              className="rounded-xl"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(e.target.value)}
+              placeholder="+233501234567"
+            />
+            <p className="text-xs text-muted-foreground">
+              Clients see a floating WhatsApp button on your booking page. Use your full number with
+              country code (no spaces required).
+            </p>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>Email</Label>
@@ -274,9 +286,13 @@ export function BrandingSettingsForm({ tenantSlug, tenant, onTenantUpdated }: Br
           </div>
         </div>
 
-        <Button className="rounded-xl" onClick={handleSave} disabled={saving}>
-          {saving ? "Saving…" : "Save branding"}
-        </Button>
+        <div className="flex justify-end border-t border-border/60 pt-4">
+          <SettingsSaveButton
+            saving={saving}
+            label="Save branding"
+            onClick={() => void handleSave()}
+          />
+        </div>
       </CardContent>
     </Card>
   );

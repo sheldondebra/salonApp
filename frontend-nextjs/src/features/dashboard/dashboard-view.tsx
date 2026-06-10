@@ -1,54 +1,67 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { format } from "date-fns";
+import Link from "next/link";
 import {
   Ban,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   Clock,
   DollarSign,
+  Package,
+  ShoppingCart,
   Smartphone,
+  UserCircle,
+  Users,
 } from "lucide-react";
-import { MetricCard } from "@/components/shared/metric-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/client";
 import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { getStaffStats } from "@/lib/api/staff-meta-cache";
 import { formatMoney } from "@/lib/format/money";
 import { useAbilities } from "@/hooks/use-abilities";
+import { useSessionUser } from "@/hooks/use-session-user";
 import { Permissions } from "@/lib/auth/permissions";
 import type {
   Appointment,
   DashboardBookingsBreakdown,
   DashboardStats,
   GrowthChartPoint,
+  StaffStats,
 } from "@/lib/api/types";
 import { DashboardQuickActions } from "./dashboard-quick-actions";
 import { DashboardModuleNav } from "./dashboard-module-nav";
 import { DashboardGrowthChart } from "./dashboard-growth-chart";
 import { DashboardBookingsPanels } from "./dashboard-bookings-panels";
+import {
+  ChartRangeToggle,
+  DashboardHeroHeader,
+  DashboardListRow,
+  DashboardPanelCard,
+  DashboardSection,
+  DashboardStatGrid,
+  IconStatCard,
+} from "./dashboard-ui";
 import { cn } from "@/lib/utils";
 
 type DashboardViewProps = {
   tenantSlug: string;
+  tenantName?: string;
   currency?: string;
 };
 
-type ChartRange = 7 | 30;
+type ChartRangeKey = "week" | "month" | "year";
+
+const RANGE_DAYS: Record<ChartRangeKey, number> = {
+  week: 7,
+  month: 30,
+  year: 90,
+};
 
 function unwrapAppointments(
   payload: Appointment[] | { data?: Appointment[] } | undefined
@@ -57,23 +70,57 @@ function unwrapAppointments(
   return Array.isArray(payload) ? payload : (payload.data ?? []);
 }
 
-function statusVariant(status: string): "default" | "secondary" | "success" | "warning" | "outline" {
-  if (status === "completed" || status === "confirmed") return "success";
-  if (status === "pending") return "warning";
-  if (status === "cancelled" || status === "no_show") return "outline";
-  return "secondary";
+function formatAppointmentSubtitle(apt: Appointment): string {
+  return [
+    apt.starts_at ? format(new Date(apt.starts_at), "EEE, MMM d · h:mm a") : null,
+    apt.client?.name,
+    apt.staff_member?.display_name ? `With ${apt.staff_member.display_name}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
-export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewProps) {
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function statusBadge(status: string) {
+  return (
+    <Badge variant="outline" className="capitalize">
+      {status.replace(/_/g, " ")}
+    </Badge>
+  );
+}
+
+export function DashboardView({
+  tenantSlug,
+  tenantName,
+  currency = "USD",
+}: DashboardViewProps) {
   const { can } = useAbilities(tenantSlug);
+  const { user } = useSessionUser();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [chart, setChart] = useState<GrowthChartPoint[]>([]);
   const [breakdown, setBreakdown] = useState<DashboardBookingsBreakdown | null>(null);
   const [upcoming, setUpcoming] = useState<Appointment[]>([]);
   const [recent, setRecent] = useState<Appointment[]>([]);
-  const [chartRange, setChartRange] = useState<ChartRange>(30);
+  const [staffStats, setStaffStats] = useState<StaffStats | null>(null);
+  const [chartRange, setChartRange] = useState<ChartRangeKey>("week");
+  const [moreOpen, setMoreOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const showStaff = can(Permissions.staff.view);
+  const showPos = can(Permissions.pos.view);
+  const base = `/${tenantSlug}`;
+  const displayName =
+    tenantName ??
+    tenantSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const firstName = user?.name?.split(" ")[0] ?? "there";
+  const chartDays = RANGE_DAYS[chartRange];
 
   const load = useCallback(() => {
     setLoading(true);
@@ -82,7 +129,7 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
     return Promise.all([
       client.get<{ stats: DashboardStats }>(`/${tenantSlug}/dashboard/stats`),
       client.get<{ data: GrowthChartPoint[] }>(
-        `/${tenantSlug}/dashboard/growth-chart?days=${chartRange}`
+        `/${tenantSlug}/dashboard/growth-chart?days=${chartDays}`
       ),
       client.get<DashboardBookingsBreakdown>(`/${tenantSlug}/dashboard/bookings-breakdown`),
       client.get<{ data: Appointment[] }>(`/${tenantSlug}/dashboard/upcoming`),
@@ -103,11 +150,29 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
         setError(err instanceof ApiError ? err.message : "Could not load dashboard");
       })
       .finally(() => setLoading(false));
-  }, [tenantSlug, chartRange]);
+  }, [tenantSlug, chartDays]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!showStaff) {
+      setStaffStats(null);
+      return;
+    }
+    let cancelled = false;
+    void getStaffStats(tenantSlug)
+      .then((data) => {
+        if (!cancelled) setStaffStats(data);
+      })
+      .catch(() => {
+        if (!cancelled) setStaffStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug, showStaff]);
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -117,217 +182,244 @@ export function DashboardView({ tenantSlug, currency = "USD" }: DashboardViewPro
     return <ErrorState description={error} onRetry={load} className="mx-auto max-w-lg" />;
   }
 
-  const base = `/${tenantSlug}`;
-
   return (
-    <div className="w-full max-w-none space-y-8">
-      <section className="relative w-full overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-card via-card to-primary/5 px-6 py-8 shadow-soft sm:px-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Salon overview</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
-              {formatMoney(stats?.revenue_month_cents ?? 0, currency)}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">Revenue this month</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {([7, 30] as ChartRange[]).map((days) => (
-              <Button
-                key={days}
-                type="button"
-                size="sm"
-                variant={chartRange === days ? "default" : "outline"}
-                className="rounded-full"
-                onClick={() => setChartRange(days)}
-              >
-                {days}d
-              </Button>
-            ))}
-          </div>
-        </div>
-      </section>
+    <div className="w-full min-w-0 space-y-5 pb-6 sm:space-y-6 sm:pb-8">
+      <DashboardHeroHeader
+        greeting={`${getGreeting()}, ${firstName}`}
+        displayName={displayName}
+        revenueLabel="Revenue this month"
+        revenueValue={formatMoney(stats?.revenue_month_cents ?? 0, currency)}
+      />
 
-      <section className="w-full space-y-4">
-        <h3 className="text-sm font-medium text-muted-foreground">Quick actions</h3>
-        <DashboardQuickActions tenantSlug={tenantSlug} can={can} />
-      </section>
-
-      <section className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 2xl:grid-cols-6 items-stretch">
-        <MetricCard
-          title="Today's bookings"
-          value={String(stats?.appointments_today ?? 0)}
+      <DashboardStatGrid>
+        <IconStatCard
           icon={Calendar}
+          label="Today"
+          value={String(stats?.appointments_today ?? 0)}
+          iconClassName="bg-primary/15 text-primary"
         />
-        <MetricCard
-          title="Revenue"
-          value={formatMoney(stats?.revenue_month_cents ?? 0, currency)}
-          icon={DollarSign}
-          hint="This month"
-        />
-        <MetricCard
-          title="Completed"
-          value={String(stats?.completed_month ?? 0)}
-          icon={CheckCircle2}
-          hint="This month"
-          className="border-emerald-500/20"
-        />
-        <MetricCard
-          title="Cancelled"
-          value={String(stats?.cancelled_month ?? 0)}
-          icon={Ban}
-          hint="This month"
-          className="border-red-500/20"
-        />
-        <MetricCard
-          title="Self bookings"
-          value={String(stats?.self_bookings_month ?? 0)}
-          icon={Smartphone}
-          hint="Online this month"
-          className="border-violet-500/20"
-        />
-        <MetricCard
-          title="Pending"
-          value={String(stats?.pending_bookings ?? 0)}
+        <IconStatCard
           icon={Clock}
+          label="Pending"
+          value={String(stats?.pending_bookings ?? 0)}
+          iconClassName="bg-amber-500/10 text-amber-600"
         />
-      </section>
-
-      <section className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2 items-stretch">
-        <div className="min-w-0">
-          <DashboardGrowthChart
-            title="Revenue growth"
-            subtitle={`Daily revenue · last ${chartRange} days`}
-            data={chart}
-            currency={currency}
-            mode="revenue"
-            className="min-h-[360px] w-full"
-          />
-        </div>
-        <div className="min-w-0">
-          <DashboardGrowthChart
-            title="Business growth"
-            subtitle={`Bookings volume & outcomes · last ${chartRange} days`}
-            data={chart}
-            currency={currency}
-            mode="business"
-            className="min-h-[360px] w-full"
-          />
-        </div>
-      </section>
-
-      <section className="w-full">
-        <div className="mb-4 flex items-end justify-between gap-4">
-          <div>
-            <h3 className="text-lg font-semibold tracking-tight">Booking breakdown</h3>
-            <p className="text-sm text-muted-foreground">
-              Cancelled, completed, and client self-service bookings
-            </p>
-          </div>
-        </div>
-        <DashboardBookingsPanels
-          cancelled={breakdown?.cancelled ?? []}
-          completed={breakdown?.completed ?? []}
-          self_bookings={breakdown?.self_bookings ?? []}
+        <IconStatCard
+          icon={DollarSign}
+          label="Revenue"
+          value={formatMoney(stats?.revenue_month_cents ?? 0, currency)}
+          iconClassName="bg-emerald-500/10 text-emerald-600"
         />
-      </section>
+        {showPos ? (
+          <IconStatCard
+            icon={ShoppingCart}
+            label="POS today"
+            value={formatMoney(stats?.pos_sales_today_cents ?? 0, currency)}
+            iconClassName="bg-violet-500/10 text-violet-600"
+          />
+        ) : (
+          <IconStatCard
+            icon={CheckCircle2}
+            label="Completed"
+            value={String(stats?.completed_month ?? 0)}
+            iconClassName="bg-emerald-500/10 text-emerald-600"
+          />
+        )}
+      </DashboardStatGrid>
 
-      <Card className="w-full rounded-2xl border-border/60 shadow-soft">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base font-medium text-muted-foreground">Jump to</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DashboardModuleNav tenantSlug={tenantSlug} can={can} />
-        </CardContent>
-      </Card>
+      <DashboardSection
+        title="Revenue trend"
+        description={`Daily revenue · last ${chartDays} days`}
+        action={<ChartRangeToggle value={chartRange} onChange={setChartRange} />}
+      >
+        <DashboardGrowthChart
+          title={`Last ${chartDays} days`}
+          data={chart}
+          currency={currency}
+          mode="revenue"
+        />
+      </DashboardSection>
 
-      <section className="grid w-full grid-cols-1 gap-4 xl:grid-cols-2 items-stretch">
-        <Card className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent bookings</CardTitle>
-            {can(Permissions.bookings.view) ? (
-              <Button variant="ghost" size="sm" className="rounded-xl" asChild>
-                <Link href={`${base}/appointments`}>View all</Link>
-              </Button>
-            ) : null}
-          </CardHeader>
-          <CardContent className="min-w-0 flex-1 overflow-x-auto">
-            {recent.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">No past bookings yet.</p>
-            ) : (
-              <Table className="w-full min-w-[32rem]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>When</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.map((apt) => (
-                    <TableRow key={apt.uuid}>
-                      <TableCell className="font-medium">{apt.service?.name ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {apt.client?.name ?? "Walk-in"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {apt.starts_at
-                          ? format(new Date(apt.starts_at), "MMM d · h:mm a")
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant(apt.status)} className="capitalize">
-                          {apt.status.replace(/_/g, " ")}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+      <DashboardSection title="Quick actions" description="Jump to your daily tools">
+        <DashboardQuickActions tenantSlug={tenantSlug} can={can} />
+      </DashboardSection>
 
-        <Card className="flex h-full min-w-0 flex-col rounded-2xl border-border/60 shadow-soft">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Upcoming appointments</CardTitle>
-            {can(Permissions.bookings.view) ? (
-              <Button variant="ghost" size="sm" className="rounded-xl" asChild>
-                <Link href={`${base}/appointments`}>View all</Link>
-              </Button>
-            ) : null}
-          </CardHeader>
-          <CardContent className="space-y-3">
+      <div className="grid w-full min-w-0 gap-5 lg:grid-cols-2 lg:gap-6">
+        <DashboardSection
+          title="Upcoming appointments"
+          action={
+            can(Permissions.bookings.view) ? (
+              <Link
+                href={`${base}/appointments`}
+                className="shrink-0 text-sm font-semibold text-primary hover:underline"
+              >
+                See all
+              </Link>
+            ) : undefined
+          }
+        >
+          <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
             {upcoming.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground sm:px-5">
                 No upcoming appointments.
               </p>
             ) : (
-              upcoming.map((apt) => (
-                <div
-                  key={apt.uuid}
-                  className={cn(
-                    "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-muted/20 px-4 py-3"
-                  )}
-                >
-                  <div>
-                    <p className="font-medium">{apt.service?.name ?? "Service"}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {apt.starts_at
-                        ? format(new Date(apt.starts_at), "EEE, MMM d · h:mm a")
-                        : "—"}
-                      {apt.staff_member ? ` · ${apt.staff_member.display_name}` : ""}
-                    </p>
-                  </div>
-                  <Badge variant={statusVariant(apt.status)} className="capitalize">
-                    {apt.status.replace(/_/g, " ")}
-                  </Badge>
-                </div>
-              ))
+              <ul className="px-4 sm:px-5">
+                {upcoming.slice(0, 8).map((apt) => (
+                  <DashboardListRow
+                    key={apt.uuid}
+                    title={apt.service?.name ?? "Service"}
+                    subtitle={formatAppointmentSubtitle(apt)}
+                    trailing={statusBadge(apt.status)}
+                    href={`${base}/appointments?highlight=${apt.uuid}`}
+                  />
+                ))}
+              </ul>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </DashboardSection>
+
+        <DashboardSection
+          title="Bookings volume"
+          description={`Appointments per day · last ${chartDays} days`}
+        >
+          <DashboardGrowthChart
+            title="Daily bookings"
+            data={chart}
+            currency={currency}
+            mode="bookings"
+          />
+        </DashboardSection>
+      </div>
+
+      {showStaff && staffStats ? (
+        <DashboardSection
+          title="Team snapshot"
+          action={
+            <Link
+              href={`${base}/staff`}
+              className="shrink-0 text-sm font-semibold text-primary hover:underline"
+            >
+              Open team
+            </Link>
+          }
+        >
+          <DashboardStatGrid>
+            <IconStatCard
+              icon={Users}
+              label="Team members"
+              value={String(staffStats.total)}
+              iconClassName="bg-primary/15 text-primary"
+            />
+            <IconStatCard
+              icon={UserCircle}
+              label="Available now"
+              value={String(staffStats.available_now)}
+              iconClassName="bg-emerald-500/10 text-emerald-600"
+            />
+          </DashboardStatGrid>
+        </DashboardSection>
+      ) : null}
+
+      <div className="rounded-2xl border border-border/50 bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground sm:text-sm">
+        {stats?.completed_month ?? 0} completed · {stats?.self_bookings_month ?? 0} online ·{" "}
+        {stats?.new_customers_month ?? 0} new clients this month
+      </div>
+
+      <section className="space-y-3">
+        <button
+          type="button"
+          onClick={() => setMoreOpen((open) => !open)}
+          className="flex w-full items-center justify-between rounded-2xl border border-border/60 bg-card px-4 py-3.5 text-sm font-semibold text-foreground shadow-soft transition-colors active:bg-muted/40"
+        >
+          More insights
+          <ChevronDown className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")} />
+        </button>
+
+        {moreOpen ? (
+          <div className="space-y-5 sm:space-y-6">
+            <DashboardStatGrid>
+              <IconStatCard
+                icon={CheckCircle2}
+                label="Completed"
+                value={String(stats?.completed_month ?? 0)}
+                iconClassName="bg-emerald-500/10 text-emerald-600"
+              />
+              <IconStatCard
+                icon={Ban}
+                label="Cancelled"
+                value={String(stats?.cancelled_month ?? 0)}
+                iconClassName="bg-red-500/10 text-red-600"
+              />
+              <IconStatCard
+                icon={Smartphone}
+                label="Online bookings"
+                value={String(stats?.self_bookings_month ?? 0)}
+                iconClassName="bg-violet-500/10 text-violet-600"
+              />
+              {showPos ? (
+                <IconStatCard
+                  icon={ShoppingCart}
+                  label="POS this month"
+                  value={formatMoney(stats?.pos_sales_month_cents ?? 0, currency)}
+                  iconClassName="bg-violet-500/10 text-violet-600"
+                />
+              ) : null}
+              {can(Permissions.inventory.view) ? (
+                <IconStatCard
+                  icon={Package}
+                  label="Active products"
+                  value={String(stats?.active_products ?? 0)}
+                  iconClassName="bg-amber-500/10 text-amber-600"
+                />
+              ) : null}
+            </DashboardStatGrid>
+
+            <DashboardSection title="Booking breakdown">
+              <DashboardBookingsPanels
+                cancelled={breakdown?.cancelled ?? []}
+                completed={breakdown?.completed ?? []}
+                self_bookings={breakdown?.self_bookings ?? []}
+              />
+            </DashboardSection>
+
+            {recent.length > 0 ? (
+              <DashboardSection
+                title="Recent bookings"
+                action={
+                  can(Permissions.bookings.view) ? (
+                    <Link
+                      href={`${base}/appointments`}
+                      className="shrink-0 text-sm font-semibold text-primary hover:underline"
+                    >
+                      See all
+                    </Link>
+                  ) : undefined
+                }
+              >
+                <DashboardPanelCard title="Latest activity">
+                  <ul>
+                    {recent.slice(0, 6).map((apt) => (
+                      <DashboardListRow
+                        key={apt.uuid}
+                        title={apt.service?.name ?? "Service"}
+                        subtitle={formatAppointmentSubtitle(apt)}
+                        trailing={statusBadge(apt.status)}
+                        href={`${base}/appointments?highlight=${apt.uuid}`}
+                      />
+                    ))}
+                  </ul>
+                </DashboardPanelCard>
+              </DashboardSection>
+            ) : null}
+
+            <DashboardPanelCard title="Jump to" description="Open any module">
+              <div className="py-3">
+                <DashboardModuleNav tenantSlug={tenantSlug} can={can} />
+              </div>
+            </DashboardPanelCard>
+          </div>
+        ) : null}
       </section>
     </div>
   );

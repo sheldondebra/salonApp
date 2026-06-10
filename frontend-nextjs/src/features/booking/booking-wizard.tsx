@@ -154,6 +154,27 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
       .finally(() => setLoading(false));
   }, [apiBase, bookingClient, catalog]);
 
+  useEffect(() => {
+    if (!apiBase || serviceIds.length === 0) return;
+    let cancelled = false;
+    const params = new URLSearchParams();
+    serviceIds.forEach((id, i) => params.set(`service_ids[${i}]`, String(id)));
+    bookingClient
+      .get<{ data: StaffMember[] }>(`${apiBase}/staff?${params}`)
+      .then((res) => {
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : [];
+        setStaff(list);
+        if (staffId && !list.some((s) => String(s.id) === staffId)) {
+          setStaffId("");
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, bookingClient, serviceIds, staffId]);
+
   const selectedServices = useMemo(
     () => services.filter((s) => serviceIds.includes(s.id)),
     [services, serviceIds]
@@ -214,6 +235,7 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
     try {
       const params = new URLSearchParams({
         date,
+        include_reasons: "1",
         ...Object.fromEntries(serviceIds.map((id, i) => [`service_ids[${i}]`, String(id)])),
       });
       if (staffId) params.set("staff_member_id", staffId);
@@ -387,9 +409,9 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
 
   if (loading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Skeleton className="h-[32rem] rounded-2xl" />
-        <Skeleton className="hidden h-[28rem] rounded-2xl lg:block" />
+      <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] xl:gap-10">
+        <Skeleton className="h-[32rem] w-full rounded-2xl" />
+        <Skeleton className="hidden h-[28rem] rounded-2xl xl:block" />
       </div>
     );
   }
@@ -425,8 +447,8 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
     const summaryServices = bookedServices.length > 0 ? bookedServices : selectedServices;
 
     return (
-      <div className={cn("grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]", className)}>
-        <Card className="shadow-soft">
+      <div className={cn("grid w-full gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] xl:gap-10", className)}>
+        <Card className="rounded-2xl shadow-soft">
           <CardHeader>
             <CardTitle>Complete payment</CardTitle>
             <CardDescription>Secure your appointment with a quick online payment.</CardDescription>
@@ -478,16 +500,16 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
   }
 
   return (
-    <div className={cn("relative scroll-mt-24 pb-28 lg:pb-0", className)}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
-        <Card id="booking-wizard" className="w-full shadow-soft">
-      <CardHeader className="space-y-4 border-b border-border/50 pb-4">
+    <div className={cn("relative w-full scroll-mt-24 pb-32 xl:pb-0", className)}>
+      <div className="grid w-full gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)] xl:items-start xl:gap-10 2xl:gap-12">
+        <Card id="booking-wizard" className="w-full rounded-2xl border-border/60 shadow-soft">
+      <CardHeader className="space-y-6 border-b border-border/40 px-6 pb-7 pt-7 sm:px-10 sm:pb-8 sm:pt-9 lg:px-12">
         <BookingStepIndicator steps={stepItems} currentIndex={stepIndex} />
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="hidden text-center text-sm text-muted-foreground sm:block">
           Step {stepIndex + 1} of {steps.length}: {STEP_LABELS[currentStep]}
         </p>
       </CardHeader>
-      <CardContent className="space-y-5 pb-6">
+      <CardContent className="space-y-7 px-6 pb-9 pt-7 sm:px-10 sm:pb-11 sm:pt-9 lg:px-12">
         {currentStep === "location" && showLocationStep && (
           <>
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
@@ -517,14 +539,28 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
           <>
             <div className="space-y-2">
               <Label>Stylist / technician (optional)</Label>
-              <Combobox
-                options={staffOptions}
-                value={staffId}
-                onValueChange={setStaffId}
-                placeholder="Any available team member"
-                searchPlaceholder="Search team…"
-                className="rounded-xl"
-              />
+              {serviceIds.length > 0 && staff.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-5 text-sm text-muted-foreground">
+                  No team members are assigned to your selected services yet. You can still book with
+                  &ldquo;Any available&rdquo; once slots open, or go back and pick different services.
+                </div>
+              ) : (
+                <>
+                  {serviceIds.length > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {staff.length} team member{staff.length === 1 ? "" : "s"} can perform your selection
+                    </p>
+                  ) : null}
+                  <Combobox
+                    options={staffOptions}
+                    value={staffId}
+                    onValueChange={setStaffId}
+                    placeholder="Any available team member"
+                    searchPlaceholder="Search team…"
+                    className="rounded-xl"
+                  />
+                </>
+              )}
             </div>
           </>
         )}
@@ -550,13 +586,14 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
               onRefresh={loadSlots}
               joinWaitlist={joinWaitlist}
               onJoinWaitlistChange={setJoinWaitlist}
+              staffName={staffName}
             />
           </>
         )}
 
         {currentStep === "options" && (
           <>
-            <div className="space-y-4 rounded-xl border border-border p-4">
+            <div className="space-y-4 rounded-xl border border-border p-5 sm:p-6">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Users className="h-4 w-4 text-accent" />
                 Group booking
@@ -573,7 +610,7 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
                 />
               </div>
             </div>
-            <div className="space-y-4 rounded-xl border border-border p-4">
+            <div className="space-y-4 rounded-xl border border-border p-5 sm:p-6">
               <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
                 <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
                 <Repeat className="h-4 w-4 text-accent" />
@@ -650,10 +687,10 @@ export function BookingWizard({ tenantSlug, tenant, booking, catalog, className 
       </CardContent>
         </Card>
 
-        <BookingCartSidebar {...cartProps} className="hidden lg:block" />
+        <BookingCartSidebar {...cartProps} className="hidden xl:block" />
       </div>
 
-      <BookingCartSidebar {...cartProps} compact className="lg:hidden" />
+      <BookingCartSidebar {...cartProps} compact className="xl:hidden" />
     </div>
   );
 }

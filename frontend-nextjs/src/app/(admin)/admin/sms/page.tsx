@@ -14,6 +14,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { AdminMnotifySettings } from "@/features/sms/admin-mnotify-settings";
+import { AdminSmsPackages } from "@/features/sms/admin-sms-packages";
 import { AdminSmsResellerHub } from "@/features/sms/admin-sms-reseller-hub";
 
 type SmsRow = {
@@ -30,7 +32,7 @@ type SmsRow = {
 type Summary = { total: number; sent: number; queued: number; failed: number };
 
 export default function AdminSmsPage() {
-  const [tab, setTab] = useState<"hub" | "log">("hub");
+  const [tab, setTab] = useState<"hub" | "log" | "settings" | "packages">("hub");
   const [rows, setRows] = useState<SmsRow[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function AdminSmsPage() {
   }, [load, tab]);
 
   return (
-    <AdminShell title="SMS" description="Reseller hub, wallets, and delivery logs">
+    <AdminShell title="SMS" description="Reseller hub, MNotify settings, packages, and delivery logs">
       <RequirePlatformPermission permission={Permissions.billing.manage}>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -77,11 +79,35 @@ export default function AdminSmsPage() {
           >
             Delivery log
           </Button>
+          <Button
+            type="button"
+            variant={tab === "settings" ? "default" : "outline"}
+            className="rounded-xl"
+            onClick={() => setTab("settings")}
+          >
+            Settings
+          </Button>
+          <Button
+            type="button"
+            variant={tab === "packages" ? "default" : "outline"}
+            className="rounded-xl"
+            onClick={() => setTab("packages")}
+          >
+            Packages
+          </Button>
         </div>
 
         {tab === "hub" ? (
           <div className="mt-6">
             <AdminSmsResellerHub />
+          </div>
+        ) : tab === "settings" ? (
+          <div className="mt-6 max-w-3xl">
+            <AdminMnotifySettings />
+          </div>
+        ) : tab === "packages" ? (
+          <div className="mt-6">
+            <AdminSmsPackages />
           </div>
         ) : (
           <>

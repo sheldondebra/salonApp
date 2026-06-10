@@ -18,7 +18,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 text-accent shadow-soft">
             <Scissors className="h-5 w-5" />
           </span>
-          SalonApp
+          Schedelux
         </Link>
         <div className="max-w-md space-y-4">
           <h2 className="text-4xl font-semibold leading-tight text-balance">
@@ -29,7 +29,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
             wellness studios.
           </p>
         </div>
-        <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} SalonApp</p>
+        <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} Schedelux</p>
         <div className="pointer-events-none absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-white/30 blur-3xl" />
         <div className="pointer-events-none absolute bottom-10 left-10 h-48 w-48 rounded-full bg-accent/20 blur-2xl" />
       </aside>
@@ -39,7 +39,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
           <div className="mb-8 lg:hidden">
             <Link href="/" className="mb-6 flex items-center gap-2 font-semibold">
               <Scissors className="h-5 w-5 text-accent" />
-              SalonApp
+              Schedelux
             </Link>
           </div>
           {back ? (

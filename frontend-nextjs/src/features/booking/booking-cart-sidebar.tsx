@@ -1,12 +1,39 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
-import { CreditCard, Loader2, ShoppingBag, Trash2 } from "lucide-react";
+import { CalendarCheck, CreditCard, Loader2, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatMoney } from "./booking-helpers";
 import type { Appointment, Service, TenantBookingConfig } from "@/lib/api/types";
+import { bookingPrimaryButtonClass } from "@/features/booking/booking-ui";
 import { cn } from "@/lib/utils";
+
+function PrimaryButtonContent({
+  loading,
+  label,
+}: {
+  loading?: boolean;
+  label: string;
+}) {
+  if (loading) {
+    return <Loader2 className="h-5 w-5 animate-spin text-white" />;
+  }
+
+  const showConfirmIcon =
+    label.toLowerCase().includes("confirm") ||
+    label.toLowerCase().includes("waitlist") ||
+    label.toLowerCase().includes("payment");
+
+  return (
+    <>
+      {showConfirmIcon ? (
+        <CalendarCheck className="mr-2 h-5 w-5 shrink-0 text-white" />
+      ) : null}
+      <span className="text-white">{label}</span>
+    </>
+  );
+}
 
 export type BookingCartSidebarProps = {
   services: Service[];
@@ -153,22 +180,25 @@ export function BookingCartSidebar({
       </dl>
 
       {!readOnly ? (
-      <div className="mt-5 space-y-2">
+      <div className="mt-6 space-y-3">
         {paymentMode ? (
           <>
             <Button
               type="button"
               size="lg"
-              className="h-12 w-full rounded-xl text-base font-semibold"
+              className={cn(
+                "h-12 w-full rounded-xl text-base font-semibold shadow-soft",
+                bookingPrimaryButtonClass
+              )}
               disabled={paymentMode.paying}
               onClick={paymentMode.onPay}
             >
               {paymentMode.paying ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin text-white" />
               ) : (
                 <>
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  {paymentMode.payLabel}
+                  <CreditCard className="mr-2 h-5 w-5 shrink-0 text-white" />
+                  <span className="text-white">{paymentMode.payLabel}</span>
                 </>
               )}
             </Button>
@@ -189,11 +219,14 @@ export function BookingCartSidebar({
             <Button
               type="button"
               size="lg"
-              className="h-12 w-full rounded-xl text-base font-semibold shadow-soft"
+              className={cn(
+                "h-12 w-full rounded-xl text-base font-semibold shadow-soft",
+                bookingPrimaryButtonClass
+              )}
               disabled={primaryDisabled || primaryLoading}
               onClick={onPrimaryAction}
             >
-              {primaryLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : primaryLabel}
+              <PrimaryButtonContent loading={primaryLoading} label={primaryLabel} />
             </Button>
             {showBack && onBack ? (
               <Button
@@ -217,11 +250,11 @@ export function BookingCartSidebar({
     return (
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 p-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/90",
+          "fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 px-5 py-5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:px-8",
           className
         )}
       >
-        <div className="mx-auto flex max-w-lg items-center gap-3">
+        <div className="mx-auto flex max-w-lg items-center gap-4">
           <div className="min-w-0 flex-1">
             <p className="text-xs text-muted-foreground">Total</p>
             <p className="text-lg font-semibold tabular-nums">
@@ -236,11 +269,14 @@ export function BookingCartSidebar({
           <Button
             type="button"
             size="lg"
-            className="min-w-[8rem] rounded-xl font-semibold"
+            className={cn(
+              "h-12 min-w-[9rem] rounded-xl px-6 text-base font-semibold shadow-soft",
+              bookingPrimaryButtonClass
+            )}
             disabled={primaryDisabled || primaryLoading}
             onClick={onPrimaryAction}
           >
-            {primaryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : primaryLabel}
+            <PrimaryButtonContent loading={primaryLoading} label={primaryLabel} />
           </Button>
         </div>
       </div>
@@ -250,7 +286,7 @@ export function BookingCartSidebar({
   return (
     <aside
       className={cn(
-        "rounded-2xl border border-border/60 bg-card p-5 shadow-soft lg:sticky lg:top-6",
+        "rounded-2xl border border-border/60 bg-card p-6 shadow-soft sm:p-7 lg:sticky lg:top-8",
         className
       )}
     >

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -36,6 +37,8 @@ class Tenant extends Model
         'state',
         'country',
         'country_code',
+        'latitude',
+        'longitude',
         'website_url',
     ];
 
@@ -45,6 +48,8 @@ class Tenant extends Model
             'status' => TenantStatus::class,
             'settings' => 'array',
             'trial_ends_at' => 'datetime',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
         ];
     }
 
@@ -79,9 +84,74 @@ class Tenant extends Model
         return $this->hasMany(Location::class);
     }
 
+    public function paymentSetting(): HasOne
+    {
+        return $this->hasOne(TenantPaymentSetting::class);
+    }
+
     public function serviceCategories(): HasMany
     {
         return $this->hasMany(ServiceCategory::class);
+    }
+
+    public function marketplaceProfile(): HasOne
+    {
+        return $this->hasOne(MarketplaceProfile::class);
+    }
+
+    public function whiteLabelSetting(): HasOne
+    {
+        return $this->hasOne(WhiteLabelSetting::class);
+    }
+
+    public function paymentCommissions(): HasMany
+    {
+        return $this->hasMany(MarketplaceCommissionRule::class);
+    }
+
+    public function featuredListings(): HasMany
+    {
+        return $this->hasMany(FeaturedListing::class);
+    }
+
+    public function branchGroups(): HasMany
+    {
+        return $this->hasMany(BranchGroup::class);
+    }
+
+    public function branchSettingOverrides(): HasMany
+    {
+        return $this->hasMany(BranchSettingOverride::class);
+    }
+
+    public function marketingIntegrations(): HasMany
+    {
+        return $this->hasMany(MarketingIntegration::class);
+    }
+
+    public function trackingEvents(): HasMany
+    {
+        return $this->hasMany(TrackingEvent::class);
+    }
+
+    public function socialBookingLinks(): HasMany
+    {
+        return $this->hasMany(SocialBookingLink::class);
+    }
+
+    public function rebookingRules(): HasMany
+    {
+        return $this->hasMany(RebookingRule::class);
+    }
+
+    public function abandonedBookingSessions(): HasMany
+    {
+        return $this->hasMany(AbandonedBookingSession::class);
+    }
+
+    public function approvalRequests(): HasMany
+    {
+        return $this->hasMany(ApprovalRequest::class);
     }
 
     public function services(): HasMany
@@ -153,7 +223,7 @@ class Tenant extends Model
 
     public function formattedAddress(): ?string
     {
-        $parts = array_filter([$this->address_line1, $this->city, $this->country]);
+        $parts = array_filter([$this->address_line1, $this->city, $this->state, $this->country]);
 
         return $parts ? implode(', ', $parts) : null;
     }

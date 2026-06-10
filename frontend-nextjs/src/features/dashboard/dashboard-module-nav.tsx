@@ -5,9 +5,11 @@ import {
   BarChart3,
   CalendarDays,
   ExternalLink,
-  LayoutDashboard,
+  Package,
   Scissors,
   Settings,
+  ShoppingCart,
+  UserCircle,
   Users,
 } from "lucide-react";
 import { Permissions } from "@/lib/auth/permissions";
@@ -16,7 +18,7 @@ import { cn } from "@/lib/utils";
 type ModuleLink = {
   label: string;
   href: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof BarChart3;
   permission: string;
   external?: boolean;
 };
@@ -33,7 +35,10 @@ export function DashboardModuleNav({ tenantSlug, can }: DashboardModuleNavProps)
     { label: "Reports", href: `${base}/reports`, icon: BarChart3, permission: Permissions.analytics.view },
     { label: "Appointments", href: `${base}/appointments`, icon: CalendarDays, permission: Permissions.bookings.view },
     { label: "Services", href: `${base}/services`, icon: Scissors, permission: Permissions.services.view },
+    { label: "Shop checkout", href: `${base}/pos`, icon: ShoppingCart, permission: Permissions.pos.view },
+    { label: "Inventory", href: `${base}/inventory`, icon: Package, permission: Permissions.inventory.view },
     { label: "Clients", href: `${base}/clients`, icon: Users, permission: Permissions.clients.view },
+    { label: "Staff", href: `${base}/staff`, icon: UserCircle, permission: Permissions.staff.view },
     { label: "Settings", href: `${base}/settings`, icon: Settings, permission: Permissions.settings.manage },
     { label: "Booking page", href: `${base}/book`, icon: ExternalLink, permission: Permissions.bookings.view, external: true },
   ];

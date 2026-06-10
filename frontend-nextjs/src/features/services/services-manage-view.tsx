@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { FolderOpen, Pencil, Scissors } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pencil, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { CategorySidebar } from "@/components/shared/category-sidebar";
 import { DataTable } from "@/components/shared/data-table";
 import { CrudToolbar } from "@/features/crud/crud-toolbar";
 import { CrudStatusBadge } from "@/features/crud/crud-status-badge";
@@ -20,11 +21,12 @@ import { Permissions } from "@/lib/auth/permissions";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import type { Service, ServiceCategory } from "@/lib/api/types";
+import { SplitPageLayout } from "@/components/layout/page-layout";
 import { cn } from "@/lib/utils";
 
 type ServicesManageViewProps = { tenantSlug: string };
 
-type Tab = "services" | "categories" | "gallery";
+type Tab = "menu" | "gallery";
 
 const emptyServiceForm = () => ({
   name: "",
@@ -47,7 +49,10 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
   const canUpdate = can(Permissions.services.update);
   const canDelete = can(Permissions.services.delete);
 
-  const [tab, setTab] = useState<Tab>("services");
+  const [tab, setTab] = useState<Tab>("menu");
+  const [allCategories, setAllCategories] = useState<ServiceCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [selectedCategoryId, setSelectedCategoryId] = useState("all");
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>([]);
 
   const [search, setSearch] = useState("");
@@ -58,12 +63,15 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
   const [serviceForm, setServiceForm] = useState(emptyServiceForm());
   const [savingService, setSavingService] = useState(false);
 
-  const [catSearch, setCatSearch] = useState("");
-  const [catPage, setCatPage] = useState(1);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
   const [categoryFormOpen, setCategoryFormOpen] = useState(false);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm());
   const [savingCategory, setSavingCategory] = useState(false);
+
+  const serviceCategoryFilter = useMemo(
+    () => (selectedCategoryId !== "all" ? { service_category_id: selectedCategoryId } : {}),
+    [selectedCategoryId]
+  );
 
   const { items: services, meta: serviceMeta, loading: servicesLoading, reload: reloadServices } =
     usePaginatedResource<Service>({
@@ -72,43 +80,61 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
       search,
       activeFilter,
       page,
+      extraParams: serviceCategoryFilter,
     });
 
-  const {
-    items: categories,
-    meta: categoryMeta,
-    loading: categoriesLoading,
-    reload: reloadCategories,
-  } = usePaginatedResource<ServiceCategory>({
-    tenantSlug,
-    path: "/service-categories",
-    search: catSearch,
-    activeFilter: "",
-    page: catPage,
-  });
-
-  const loadCategoryOptions = useCallback(async () => {
+  const loadAllCategories = useCallback(async () => {
+    setCategoriesLoading(true);
     try {
       const res = await createApiClient(getApiClientOptions()).get<{ data: ServiceCategory[] }>(
-        `/${tenantSlug}/service-categories?per_page=100&is_active=1`
+        `/${tenantSlug}/service-categories?per_page=100`
       );
       const rows = Array.isArray(res.data) ? res.data : [];
+      setAllCategories(rows);
       setCategoryOptions([
         { value: "", label: "No category" },
-        ...rows.map((c) => ({ value: String(c.id), label: c.name })),
+        ...rows.filter((c) => c.is_active).map((c) => ({ value: String(c.id), label: c.name })),
       ]);
     } catch {
+      setAllCategories([]);
       setCategoryOptions([{ value: "", label: "No category" }]);
+    } finally {
+      setCategoriesLoading(false);
     }
   }, [tenantSlug]);
 
   useEffect(() => {
-    loadCategoryOptions();
-  }, [loadCategoryOptions, categories.length]);
+    loadAllCategories();
+  }, [loadAllCategories]);
+
+  const totalServiceCount = useMemo(
+    () => allCategories.reduce((sum, c) => sum + (c.services_count ?? 0), 0),
+    [allCategories]
+  );
+
+  const sidebarItems = useMemo(
+    () => [
+      { id: "all", label: "All services", count: totalServiceCount },
+      ...allCategories.map((c) => ({
+        id: String(c.id),
+        label: c.name,
+        count: c.services_count ?? 0,
+      })),
+    ],
+    [allCategories, totalServiceCount]
+  );
+
+  const selectedCategory =
+    selectedCategoryId !== "all"
+      ? allCategories.find((c) => String(c.id) === selectedCategoryId) ?? null
+      : null;
 
   function openCreateService() {
     setEditingService(null);
-    setServiceForm(emptyServiceForm());
+    setServiceForm({
+      ...emptyServiceForm(),
+      service_category_id: selectedCategoryId !== "all" ? selectedCategoryId : "",
+    });
     setServiceFormOpen(true);
   }
 
@@ -153,7 +179,7 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
       }
       setServiceFormOpen(false);
       reloadServices();
-      loadCategoryOptions();
+      loadAllCategories();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save service");
     } finally {
@@ -166,6 +192,7 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
       await crudRequest(tenantSlug, "delete", `/services/${row.id}`);
       toast.success("Service deactivated");
       reloadServices();
+      loadAllCategories();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not deactivate service");
     }
@@ -207,8 +234,7 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
         toast.success("Category created");
       }
       setCategoryFormOpen(false);
-      reloadCategories();
-      loadCategoryOptions();
+      loadAllCategories();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not save category");
     } finally {
@@ -220,18 +246,81 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
     try {
       await crudRequest(tenantSlug, "delete", `/service-categories/${row.id}`);
       toast.success("Category removed");
-      reloadCategories();
-      loadCategoryOptions();
+      if (selectedCategoryId === String(row.id)) {
+        setSelectedCategoryId("all");
+      }
+      loadAllCategories();
+      reloadServices();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Could not remove category");
     }
   }
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "services", label: "Services" },
-    { id: "categories", label: "Categories" },
+    { id: "menu", label: "Service menu" },
     { id: "gallery", label: "Portfolio" },
   ];
+
+  const categoryFooter = categoryFormOpen && (canCreate || canUpdate) ? (
+    <div className="space-y-3">
+      <p className="text-xs font-medium text-muted-foreground">
+        {editingCategory ? "Edit category" : "New category"}
+      </p>
+      <div className="space-y-2">
+        <Input
+          className="h-9 rounded-lg text-sm"
+          placeholder="Category name"
+          value={categoryForm.name}
+          onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+        />
+        <Input
+          type="number"
+          className="h-9 rounded-lg text-sm"
+          placeholder="Sort order"
+          value={categoryForm.sort_order}
+          onChange={(e) => setCategoryForm({ ...categoryForm, sort_order: parseInt(e.target.value, 10) || 0 })}
+        />
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={categoryForm.is_active}
+            onChange={(e) => setCategoryForm({ ...categoryForm, is_active: e.target.checked })}
+          />
+          Active
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" className="h-8 flex-1 rounded-lg" onClick={saveCategory} disabled={savingCategory}>
+          {savingCategory ? "Saving…" : editingCategory ? "Update" : "Create"}
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 rounded-lg" onClick={() => setCategoryFormOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  ) : selectedCategory && (canUpdate || canDelete) ? (
+    <div className="flex flex-wrap gap-2">
+      {canUpdate ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 flex-1 rounded-lg gap-1"
+          onClick={() => openEditCategory(selectedCategory)}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+          Edit
+        </Button>
+      ) : null}
+      {canDelete ? (
+        <ConfirmAction
+          label="Delete"
+          variant="destructive"
+          confirmMessage={`Delete category "${selectedCategory.name}"?`}
+          onConfirm={() => removeCategory(selectedCategory)}
+        />
+      ) : null}
+    </div>
+  ) : null;
 
   return (
     <div className="space-y-6">
@@ -251,236 +340,164 @@ export function ServicesManageView({ tenantSlug }: ServicesManageViewProps) {
         ))}
       </div>
 
-      {tab === "services" ? (
-        <Card className="rounded-2xl shadow-soft">
-          <CardHeader className="space-y-4">
-            <CardTitle className="flex items-center gap-2">
-              <Scissors className="h-5 w-5 text-accent" />
-              Service menu
-            </CardTitle>
-            <CrudToolbar
-              search={search}
-              onSearchChange={(v) => {
-                setSearch(v);
+      {tab === "menu" ? (
+        <SplitPageLayout
+          sidebar={
+            <CategorySidebar
+              title="Categories"
+              subtitle="Filter and organize your menu"
+              items={sidebarItems}
+              selectedId={selectedCategoryId}
+              onSelect={(id) => {
+                setSelectedCategoryId(id);
                 setPage(1);
               }}
-              searchPlaceholder="Search services…"
-              activeFilter={activeFilter}
-              onActiveFilterChange={(v) => {
-                setActiveFilter(v);
-                setPage(1);
-              }}
-              onAdd={openCreateService}
-              addLabel="Add service"
-              canAdd={canCreate}
-            />
-          </CardHeader>
-          <CardContent className="space-y-4 p-0">
-            {serviceFormOpen && (canCreate || canUpdate) ? (
-              <div className="mx-6 mb-4 grid gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Label>Name</Label>
-                  <Input className="mt-1 rounded-xl" value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} />
-                </div>
-                <div className="sm:col-span-2">
-                  <Label>Description</Label>
-                  <textarea
-                    className="mt-1 flex min-h-[72px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                    value={serviceForm.description}
-                    onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Combobox
-                    className="mt-1 rounded-xl"
-                    options={categoryOptions}
-                    value={serviceForm.service_category_id}
-                    onValueChange={(v) => setServiceForm({ ...serviceForm, service_category_id: v })}
-                    placeholder="Select category"
-                  />
-                </div>
-                <div>
-                  <Label>Duration (minutes)</Label>
-                  <Input
-                    type="number"
-                    className="mt-1 rounded-xl"
-                    value={serviceForm.duration_minutes}
-                    onChange={(e) =>
-                      setServiceForm({ ...serviceForm, duration_minutes: parseInt(e.target.value, 10) || 60 })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Price ($)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="mt-1 rounded-xl"
-                    value={serviceForm.price}
-                    onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
-                  />
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={serviceForm.is_active}
-                    onChange={(e) => setServiceForm({ ...serviceForm, is_active: e.target.checked })}
-                  />
-                  Active
-                </label>
-                <div className="flex gap-2 sm:col-span-2">
-                  <Button className="rounded-xl" onClick={saveService} disabled={savingService}>
-                    {savingService ? "Saving…" : editingService ? "Update" : "Create"}
-                  </Button>
-                  <Button variant="ghost" className="rounded-xl" onClick={() => setServiceFormOpen(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-
-            <DataTable
-              columns={[
-                { id: "name", header: "Service", cell: (r) => <span className="font-medium">{r.name}</span> },
-                { id: "category", header: "Category", cell: (r) => r.category?.name ?? "—" },
-                { id: "duration", header: "Duration", cell: (r) => `${r.duration_minutes} min` },
-                { id: "price", header: "Price", cell: (r) => `$${r.price_formatted}` },
-                { id: "status", header: "Status", cell: (r) => <CrudStatusBadge active={r.is_active ?? true} /> },
-                {
-                  id: "actions",
-                  header: "",
-                  className: "w-44 text-right",
-                  cell: (r) =>
-                    canUpdate || canDelete ? (
-                      <div className="flex justify-end gap-1">
-                        {canUpdate ? (
-                          <Button variant="ghost" size="sm" className="rounded-lg gap-1" onClick={() => openEditService(r)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </Button>
-                        ) : null}
-                        {canDelete ? (
-                          <ConfirmAction
-                            label="Deactivate"
-                            variant="destructive"
-                            confirmMessage={`Deactivate "${r.name}"?`}
-                            onConfirm={() => deactivateService(r)}
-                          />
-                        ) : null}
-                      </div>
-                    ) : null,
-                },
-              ]}
-              data={services}
-              rowKey={(r) => String(r.id)}
-              loading={servicesLoading}
-              emptyIcon={Scissors}
-              emptyTitle="No services yet"
-              emptyDescription="Add services clients can book online."
-              emptyActionLabel={canCreate ? "Add service" : undefined}
-              onEmptyAction={canCreate ? openCreateService : undefined}
-            />
-            <CrudPagination meta={serviceMeta} page={page} onPageChange={setPage} />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {tab === "categories" ? (
-        <Card className="rounded-2xl shadow-soft">
-          <CardHeader className="space-y-4">
-            <CardTitle className="flex items-center gap-2">
-              <FolderOpen className="h-5 w-5 text-accent" />
-              Categories
-            </CardTitle>
-            <CrudToolbar
-              search={catSearch}
-              onSearchChange={(v) => {
-                setCatSearch(v);
-                setCatPage(1);
-              }}
-              searchPlaceholder="Search categories…"
-              activeFilter=""
-              onActiveFilterChange={() => {}}
               onAdd={openCreateCategory}
-              addLabel="Add category"
+              addLabel="Add"
               canAdd={canCreate}
+              footer={categoryFooter}
             />
-          </CardHeader>
-          <CardContent className="space-y-4 p-0">
-            {categoryFormOpen && (canCreate || canUpdate) ? (
-              <div className="mx-6 mb-4 grid gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-4 sm:grid-cols-3">
-                <div>
-                  <Label>Name</Label>
-                  <Input className="mt-1 rounded-xl" value={categoryForm.name} onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} />
+          }
+        >
+          <Card className="w-full rounded-2xl shadow-soft">
+            <CardHeader className="space-y-4">
+              <CardTitle className="flex items-center gap-2">
+                <Scissors className="h-5 w-5 text-accent" />
+                {selectedCategory ? selectedCategory.name : "All services"}
+              </CardTitle>
+              <CrudToolbar
+                search={search}
+                onSearchChange={(v) => {
+                  setSearch(v);
+                  setPage(1);
+                }}
+                searchPlaceholder="Search services…"
+                activeFilter={activeFilter}
+                onActiveFilterChange={(v) => {
+                  setActiveFilter(v);
+                  setPage(1);
+                }}
+                onAdd={openCreateService}
+                addLabel="Add service"
+                canAdd={canCreate}
+              />
+            </CardHeader>
+            <CardContent className="space-y-4 p-0">
+              {serviceFormOpen && (canCreate || canUpdate) ? (
+                <div className="mx-6 mb-4 grid gap-3 rounded-2xl border border-dashed border-border bg-muted/30 p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <Label>Name</Label>
+                    <Input className="mt-1 rounded-xl" value={serviceForm.name} onChange={(e) => setServiceForm({ ...serviceForm, name: e.target.value })} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label>Description</Label>
+                    <textarea
+                      className="mt-1 flex min-h-[72px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                      value={serviceForm.description}
+                      onChange={(e) => setServiceForm({ ...serviceForm, description: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label>Category</Label>
+                    <Combobox
+                      className="mt-1 rounded-xl"
+                      options={categoryOptions}
+                      value={serviceForm.service_category_id}
+                      onValueChange={(v) => setServiceForm({ ...serviceForm, service_category_id: v })}
+                      placeholder="Select category"
+                    />
+                  </div>
+                  <div>
+                    <Label>Duration (minutes)</Label>
+                    <Input
+                      type="number"
+                      className="mt-1 rounded-xl"
+                      value={serviceForm.duration_minutes}
+                      onChange={(e) =>
+                        setServiceForm({ ...serviceForm, duration_minutes: parseInt(e.target.value, 10) || 60 })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label>Price ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="mt-1 rounded-xl"
+                      value={serviceForm.price}
+                      onChange={(e) => setServiceForm({ ...serviceForm, price: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={serviceForm.is_active}
+                      onChange={(e) => setServiceForm({ ...serviceForm, is_active: e.target.checked })}
+                    />
+                    Active
+                  </label>
+                  <div className="flex gap-2 sm:col-span-2">
+                    <Button className="rounded-xl" onClick={saveService} disabled={savingService}>
+                      {savingService ? "Saving…" : editingService ? "Update" : "Create"}
+                    </Button>
+                    <Button variant="ghost" className="rounded-xl" onClick={() => setServiceFormOpen(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label>Sort order</Label>
-                  <Input
-                    type="number"
-                    className="mt-1 rounded-xl"
-                    value={categoryForm.sort_order}
-                    onChange={(e) => setCategoryForm({ ...categoryForm, sort_order: parseInt(e.target.value, 10) || 0 })}
-                  />
-                </div>
-                <label className="flex items-end gap-2 pb-2 text-sm">
-                  <input type="checkbox" checked={categoryForm.is_active} onChange={(e) => setCategoryForm({ ...categoryForm, is_active: e.target.checked })} />
-                  Active
-                </label>
-                <div className="flex gap-2 sm:col-span-3">
-                  <Button className="rounded-xl" onClick={saveCategory} disabled={savingCategory}>
-                    {savingCategory ? "Saving…" : editingCategory ? "Update" : "Create"}
-                  </Button>
-                  <Button variant="ghost" className="rounded-xl" onClick={() => setCategoryFormOpen(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            <DataTable
-              columns={[
-                { id: "name", header: "Category", cell: (r) => <span className="font-medium">{r.name}</span> },
-                { id: "count", header: "Services", cell: (r) => r.services_count ?? 0 },
-                { id: "order", header: "Order", cell: (r) => r.sort_order },
-                { id: "status", header: "Status", cell: (r) => <CrudStatusBadge active={r.is_active} /> },
-                {
-                  id: "actions",
-                  header: "",
-                  className: "w-44 text-right",
-                  cell: (r) =>
-                    canUpdate || canDelete ? (
-                      <div className="flex justify-end gap-1">
-                        {canUpdate ? (
-                          <Button variant="ghost" size="sm" className="rounded-lg gap-1" onClick={() => openEditCategory(r)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit
-                          </Button>
-                        ) : null}
-                        {canDelete ? (
-                          <ConfirmAction
-                            label="Delete"
-                            variant="destructive"
-                            confirmMessage={`Delete category "${r.name}"?`}
-                            onConfirm={() => removeCategory(r)}
-                          />
-                        ) : null}
-                      </div>
-                    ) : null,
-                },
-              ]}
-              data={categories}
-              rowKey={(r) => String(r.id)}
-              loading={categoriesLoading}
-              emptyIcon={FolderOpen}
-              emptyTitle="No categories"
-              emptyDescription="Group services into categories for your booking menu."
-              emptyActionLabel={canCreate ? "Add category" : undefined}
-              onEmptyAction={canCreate ? openCreateCategory : undefined}
-            />
-            <CrudPagination meta={categoryMeta} page={catPage} onPageChange={setCatPage} />
-          </CardContent>
-        </Card>
+              <DataTable
+                columns={[
+                  { id: "name", header: "Service", cell: (r) => <span className="font-medium">{r.name}</span> },
+                  ...(selectedCategoryId === "all"
+                    ? [{ id: "category", header: "Category", cell: (r: Service) => r.category?.name ?? "—" }]
+                    : []),
+                  { id: "duration", header: "Duration", cell: (r) => `${r.duration_minutes} min` },
+                  { id: "price", header: "Price", cell: (r) => `$${r.price_formatted}` },
+                  { id: "status", header: "Status", cell: (r) => <CrudStatusBadge active={r.is_active ?? true} /> },
+                  {
+                    id: "actions",
+                    header: "",
+                    className: "w-44 text-right",
+                    cell: (r) =>
+                      canUpdate || canDelete ? (
+                        <div className="flex justify-end gap-1">
+                          {canUpdate ? (
+                            <Button variant="ghost" size="sm" className="rounded-lg gap-1" onClick={() => openEditService(r)}>
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit
+                            </Button>
+                          ) : null}
+                          {canDelete ? (
+                            <ConfirmAction
+                              label="Deactivate"
+                              variant="destructive"
+                              confirmMessage={`Deactivate "${r.name}"?`}
+                              onConfirm={() => deactivateService(r)}
+                            />
+                          ) : null}
+                        </div>
+                      ) : null,
+                  },
+                ]}
+                data={services}
+                rowKey={(r) => String(r.id)}
+                loading={servicesLoading || categoriesLoading}
+                emptyIcon={Scissors}
+                emptyTitle={selectedCategory ? `No services in ${selectedCategory.name}` : "No services yet"}
+                emptyDescription={
+                  selectedCategory
+                    ? "Add a service to this category or pick another category."
+                    : "Add services clients can book online."
+                }
+                emptyActionLabel={canCreate ? "Add service" : undefined}
+                onEmptyAction={canCreate ? openCreateService : undefined}
+              />
+              <CrudPagination meta={serviceMeta} page={page} onPageChange={setPage} />
+            </CardContent>
+          </Card>
+        </SplitPageLayout>
       ) : null}
 
       {tab === "gallery" ? <PortfolioGallerySection tenantSlug={tenantSlug} /> : null}

@@ -46,6 +46,10 @@ class AppointmentController extends Controller
             $query->where('staff_member_id', $request->integer('staff_id'));
         }
 
+        if ($request->filled('client_user_id')) {
+            $query->where('client_user_id', $request->integer('client_user_id'));
+        }
+
         if ($request->filled('q')) {
             $term = '%'.$request->string('q')->toString().'%';
             $query->where(function ($q) use ($term) {

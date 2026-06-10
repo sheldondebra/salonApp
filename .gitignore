@@ -29,6 +29,6 @@ out/
 
 # Laravel (backend-laravel has its own .gitignore)
 # Mobile
-mobile-reactnative/.expo/
-mobile-reactnative/android/
-mobile-reactnative/ios/
+salonmobileapp/.expo/
+salonmobileapp/android/
+salonmobileapp/ios/

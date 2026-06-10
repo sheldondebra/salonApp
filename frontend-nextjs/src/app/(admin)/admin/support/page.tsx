@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 export default function AdminSupportPage() {
   return (
     <AdminShell title="Support" description="Customer support tickets (coming soon)">
-      <RequirePlatformPermission permission={Permissions.tenants.view}>
+      <RequirePlatformPermission permission={[Permissions.office.support, Permissions.tenants.view]}>
         <Card className="rounded-2xl shadow-soft">
           <CardHeader>
             <CardTitle>Support tickets</CardTitle>

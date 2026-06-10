@@ -55,6 +55,8 @@ class TenantSettingsController extends Controller
             'address_line1' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
             'country' => ['nullable', 'string', 'max:100'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'timezone' => ['nullable', 'string', 'max:64'],
             'multiple_locations' => ['sometimes', 'boolean'],
             'social' => ['nullable', 'array'],

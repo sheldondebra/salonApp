@@ -17,6 +17,7 @@ class StockMovement extends Model
         'location_id',
         'user_id',
         'sale_id',
+        'purchase_order_id',
         'type',
         'quantity_change',
         'quantity_before',
@@ -50,5 +51,10 @@ class StockMovement extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
+    }
+
+    public function purchaseOrder(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 }

@@ -80,6 +80,9 @@ return [
         'inventory' => [
             'allow_negative_stock' => false,
         ],
+        'finance' => [
+            'discount_approval_threshold_percent' => 20,
+        ],
     ],
 
 ];

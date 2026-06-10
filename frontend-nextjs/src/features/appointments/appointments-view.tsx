@@ -1,23 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { useSearchParams } from "next/navigation";
+import { format, isToday, isTomorrow, parseISO, startOfDay } from "date-fns";
 import {
   CalendarDays,
   CalendarClock,
   Clock,
+  LayoutGrid,
+  LayoutList,
   Plus,
   RefreshCw,
-  Search,
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppointmentCard } from "@/features/appointments/appointment-card";
 import { AppointmentReschedulePanel } from "@/features/appointments/appointment-reschedule-panel";
 import { StaffBookingPanel } from "@/features/appointments/staff-booking-panel";
+import { ScheduleCalendarPanel } from "@/features/schedule/schedule-calendar-panel";
+import { AppointmentDetailDrawer } from "@/features/schedule/appointment-detail-drawer";
+import { CreatePaymentRequestDialog } from "@/features/payment-requests/create-payment-request-dialog";
+import { bookingPaymentPrefill } from "@/features/payment-requests/payment-request-prefill";
+import { invalidateScheduleCache } from "@/features/schedule/use-schedule-range";
 import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/shared/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -35,6 +42,7 @@ import type {
   Appointment,
   AppointmentStatus,
   AppointmentsListMeta,
+  ScheduleEvent,
 } from "@/lib/api/types";
 import { APPOINTMENT_STATUSES, STATUS_LABELS } from "@/lib/appointments/status";
 import { cn } from "@/lib/utils";
@@ -63,11 +71,26 @@ type AppointmentsViewProps = {
 };
 
 export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsViewProps) {
+  const searchParams = useSearchParams();
   const { booking } = useTenant(tenantSlug);
   const { can } = useAbilities(tenantSlug);
   const canCreate = can(Permissions.bookings.create);
   const canUpdate = can(Permissions.bookings.update);
+  const canRequestPayment = can(Permissions.payment_requests.create);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [momoOpen, setMomoOpen] = useState(false);
+  const [momoPrefill, setMomoPrefill] = useState<ReturnType<typeof bookingPaymentPrefill>>(null);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">(() => {
+    if (typeof window !== "undefined") {
+      const param = new URLSearchParams(window.location.search).get("view");
+      if (param === "calendar") return "calendar";
+      if (param === "list") return "list";
+      return window.matchMedia("(min-width: 768px)").matches ? "calendar" : "list";
+    }
+    return "list";
+  });
+  const [calendarDate, setCalendarDate] = useState(() => startOfDay(new Date()));
+  const [drawerAppointment, setDrawerAppointment] = useState<Appointment | null>(null);
 
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("today");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -84,6 +107,12 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
     const t = setTimeout(() => setSearchDebounced(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+
+  useEffect(() => {
+    const param = searchParams.get("view");
+    if (param === "calendar") setViewMode("calendar");
+    else if (param === "list") setViewMode("list");
+  }, [searchParams]);
 
   const load = useCallback(
     async (quiet = false) => {
@@ -129,6 +158,20 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
     }
   }
 
+  async function openScheduleEvent(event: ScheduleEvent) {
+    if (event.type !== "appointment") return;
+    const uuid = event.meta?.appointment_uuid;
+    if (typeof uuid !== "string") return;
+    try {
+      const res = await createApiClient(getApiClientOptions()).get<{ data: Appointment }>(
+        `/${tenantSlug}/appointments/${uuid}`
+      );
+      setDrawerAppointment(res.data);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not load appointment");
+    }
+  }
+
   const rescheduleTarget = useMemo(
     () => appointments.find((a) => a.uuid === rescheduleId) ?? null,
     [appointments, rescheduleId]
@@ -163,6 +206,26 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
+            className="gap-1"
+            onClick={() => setViewMode("list")}
+          >
+            <LayoutList className="h-4 w-4" />
+            List
+          </Button>
+          <Button
+            type="button"
+            variant={viewMode === "calendar" ? "default" : "outline"}
+            size="sm"
+            className="gap-1"
+            onClick={() => setViewMode("calendar")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Calendar
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -219,15 +282,12 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
           ))}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search client, service, staff…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search client, service, staff…"
+            className="min-w-[200px] flex-1"
+          />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-[160px]">
               <SelectValue placeholder="Status" />
@@ -250,11 +310,47 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
           currency={currency}
           booking={booking}
           onClose={() => setBookingOpen(false)}
-          onBooked={() => load(true)}
+          onBooked={() => {
+            load(true);
+            invalidateScheduleCache(tenantSlug);
+          }}
         />
       ) : null}
 
-      {loading ? (
+      {drawerAppointment ? (
+        <AppointmentDetailDrawer
+          appointment={drawerAppointment}
+          currency={currency}
+          canUpdate={canUpdate}
+          canRequestPayment={canRequestPayment && !!bookingPaymentPrefill(drawerAppointment)}
+          onClose={() => setDrawerAppointment(null)}
+          onRequestPayment={() => {
+            const prefill = bookingPaymentPrefill(drawerAppointment);
+            if (!prefill) return;
+            setMomoPrefill(prefill);
+            setMomoOpen(true);
+          }}
+          onStatusChange={(uuid, status) => {
+            void handleStatusChange(uuid, status);
+            setDrawerAppointment(null);
+            invalidateScheduleCache(tenantSlug);
+          }}
+          onReschedule={() => {
+            setRescheduleId(drawerAppointment.uuid);
+            setDrawerAppointment(null);
+          }}
+        />
+      ) : null}
+
+      {viewMode === "calendar" ? (
+        <ScheduleCalendarPanel
+          tenantSlug={tenantSlug}
+          anchorDate={calendarDate}
+          onAnchorDateChange={setCalendarDate}
+          onEventClick={(event) => void openScheduleEvent(event)}
+          onSlotClick={() => canCreate && setBookingOpen(true)}
+        />
+      ) : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -324,6 +420,17 @@ export function AppointmentsView({ tenantSlug, currency = "USD" }: AppointmentsV
           ) : null}
         </div>
       )}
+
+      <CreatePaymentRequestDialog
+        tenantSlug={tenantSlug}
+        currency={currency}
+        open={momoOpen}
+        onClose={() => {
+          setMomoOpen(false);
+          setMomoPrefill(null);
+        }}
+        prefill={momoPrefill}
+      />
     </div>
   );
 }

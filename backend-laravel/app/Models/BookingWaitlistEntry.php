@@ -24,8 +24,12 @@ class BookingWaitlistEntry extends Model
         'preferred_date',
         'preferred_time',
         'party_size',
+        'priority',
         'status',
         'notes',
+        'notified_at',
+        'created_by_user_id',
+        'converted_appointment_id',
     ];
 
     protected function casts(): array
@@ -34,7 +38,14 @@ class BookingWaitlistEntry extends Model
             'service_ids' => 'array',
             'preferred_date' => 'date',
             'party_size' => 'integer',
+            'priority' => 'integer',
+            'notified_at' => 'datetime',
         ];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
     }
 
     protected static function booted(): void
@@ -57,5 +68,15 @@ class BookingWaitlistEntry extends Model
     public function staffMember(): BelongsTo
     {
         return $this->belongsTo(StaffMember::class);
+    }
+
+    public function convertedAppointment(): BelongsTo
+    {
+        return $this->belongsTo(Appointment::class, 'converted_appointment_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
     }
 }

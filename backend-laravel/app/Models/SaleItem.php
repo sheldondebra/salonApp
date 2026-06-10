@@ -17,6 +17,7 @@ class SaleItem extends Model
         'item_type',
         'service_id',
         'product_id',
+        'service_addon_id',
         'name',
         'quantity',
         'unit_price_cents',
@@ -43,5 +44,10 @@ class SaleItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function serviceAddon(): BelongsTo
+    {
+        return $this->belongsTo(ServiceAddon::class);
     }
 }

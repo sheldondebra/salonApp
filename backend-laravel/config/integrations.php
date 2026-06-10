@@ -15,6 +15,18 @@ return [
         'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
         'webhook_secret' => env('FLUTTERWAVE_WEBHOOK_SECRET'),
       ],
+      'mtn_momo' => [
+        'api_user' => env('MTN_MOMO_API_USER'),
+        'api_key' => env('MTN_MOMO_API_KEY'),
+        'subscription_key' => env('MTN_MOMO_SUBSCRIPTION_KEY'),
+        'target_environment' => env('MTN_MOMO_TARGET_ENVIRONMENT', 'sandbox'),
+        'callback_host' => env('MTN_MOMO_CALLBACK_HOST'),
+        'environment' => env('MTN_MOMO_ENVIRONMENT', 'sandbox'),
+        'country' => env('MTN_MOMO_COUNTRY', 'GH'),
+        'currency' => env('MTN_MOMO_CURRENCY', 'GHS'),
+        'base_url' => env('MTN_MOMO_BASE_URL', 'https://sandbox.momodeveloper.mtn.com'),
+        'mock' => (bool) env('MTN_MOMO_MOCK', false),
+      ],
     ],
   ],
 

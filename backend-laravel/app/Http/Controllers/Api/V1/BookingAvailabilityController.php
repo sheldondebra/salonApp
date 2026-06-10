@@ -38,12 +38,17 @@ class BookingAvailabilityController extends Controller
             return response()->json(['data' => [], 'meta' => ['duration_minutes' => 0]]);
         }
 
+        $includeReasons = $request->boolean('include_reasons');
+        $serviceIds = array_map('intval', $validated['service_ids']);
+
         $slots = $availability->slotsForDay(
             $validated['date'],
             $duration,
             $validated['staff_member_id'] ?? null,
             $validated['location_id'] ?? null,
             $excludeId,
+            $includeReasons,
+            $serviceIds,
         );
 
         return response()->json([

@@ -1,6 +1,7 @@
 "use client";
 
 import { WorkplaceShell } from "@/components/layout/workplace-shell";
+import { PageContent } from "@/components/layout/page-layout";
 import {
   ContentAreaSkeleton,
   type ContentSkeletonVariant,
@@ -60,7 +61,7 @@ export function WorkplacePageShell({
       title={title}
       description={description}
     >
-      {main}
+      <PageContent>{main}</PageContent>
     </WorkplaceShell>
   );
 }
@@ -84,7 +85,9 @@ export function WorkplacePageShellPlaceholder({
       title={title}
       description={description}
     >
-      <ContentAreaSkeleton variant={skeletonVariant} />
+      <PageContent>
+        <ContentAreaSkeleton variant={skeletonVariant} />
+      </PageContent>
     </WorkplaceShell>
   );
 }

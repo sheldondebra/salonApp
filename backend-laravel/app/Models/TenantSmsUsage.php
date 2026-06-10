@@ -9,6 +9,9 @@ class TenantSmsUsage extends Model
 {
     use BelongsToTenant;
 
+    /** Migration table name is singular (`tenant_sms_usage`). */
+    protected $table = 'tenant_sms_usage';
+
     protected $fillable = [
         'tenant_id',
         'period',

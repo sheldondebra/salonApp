@@ -10,6 +10,7 @@ type LoadAvailabilityParams = {
   staffMemberId?: number | null;
   locationId?: number | null;
   excludeAppointmentUuid?: string;
+  includeReasons?: boolean;
 };
 
 export async function loadAvailabilitySlots({
@@ -19,6 +20,7 @@ export async function loadAvailabilitySlots({
   staffMemberId,
   locationId,
   excludeAppointmentUuid,
+  includeReasons = true,
 }: LoadAvailabilityParams): Promise<BookingTimeSlot[]> {
   if (!serviceIds.length || !date) return [];
 
@@ -27,6 +29,7 @@ export async function loadAvailabilitySlots({
   if (staffMemberId) params.set("staff_member_id", String(staffMemberId));
   if (locationId) params.set("location_id", String(locationId));
   if (excludeAppointmentUuid) params.set("exclude_appointment_uuid", excludeAppointmentUuid);
+  if (includeReasons) params.set("include_reasons", "1");
 
   const apiBase = bookingApiBase(tenantSlug);
   const res = await createApiClient(getApiClientOptions()).get<{ data: BookingTimeSlot[] }>(

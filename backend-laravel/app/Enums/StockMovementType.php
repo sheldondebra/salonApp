@@ -9,4 +9,6 @@ enum StockMovementType: string
     case Purchase = 'purchase';
     case Sale = 'sale';
     case Correction = 'correction';
+    case Damage = 'damage';
+    case Loss = 'loss';
 }

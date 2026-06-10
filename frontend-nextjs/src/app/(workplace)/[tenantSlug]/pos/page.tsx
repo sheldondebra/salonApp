@@ -10,7 +10,7 @@ export default function PosPage({ params }: { params: { tenantSlug: string } }) 
     <WorkplacePageShell
       tenantSlug={params.tenantSlug}
       title="Point of sale"
-      description="Checkout services and retail products"
+      description="Professional checkout for services and retail products"
     >
       {({ tenant }) => (
         <RequirePermission tenantSlug={params.tenantSlug} permission={Permissions.pos.view}>

@@ -11,15 +11,14 @@ import { Permissions } from "@/lib/auth/permissions";
 
 function TenantDashboardContent({ tenantSlug }: { tenantSlug: string }) {
   return (
-    <WorkplacePageShell
-      tenantSlug={tenantSlug}
-      title="Dashboard"
-      description="Your salon at a glance — bookings, revenue, and team"
-      skeletonVariant="dashboard"
-    >
+    <WorkplacePageShell tenantSlug={tenantSlug} skeletonVariant="dashboard">
       {({ tenant }) => (
         <RequirePermission tenantSlug={tenantSlug} permission={Permissions.analytics.view}>
-          <DashboardView tenantSlug={tenantSlug} currency={tenant.currency} />
+          <DashboardView
+            tenantSlug={tenantSlug}
+            tenantName={tenant.name}
+            currency={tenant.currency}
+          />
         </RequirePermission>
       )}
     </WorkplacePageShell>

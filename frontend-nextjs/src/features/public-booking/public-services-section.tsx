@@ -4,6 +4,7 @@ import { Clock, Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/features/booking/booking-helpers";
+import { bookingPrimaryButtonClass, bookingPrimaryLinkClass } from "@/features/booking/booking-ui";
 import type { Service } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -23,26 +24,32 @@ export function PublicServicesSection({
   const featured = services.slice(0, 8);
 
   return (
-    <section className={cn("space-y-3", className)} aria-labelledby="services-heading">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h3 id="services-heading" className="text-base font-semibold tracking-tight">
+    <section className={cn("space-y-6", className)} aria-labelledby="services-heading">
+      <div className="flex flex-wrap items-end justify-between gap-5">
+        <div className="space-y-1">
+          <h3 id="services-heading" className="text-xl font-semibold tracking-tight">
             Services
           </h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground sm:text-base">
             {services.length} available — choose any combination when you book
           </p>
         </div>
-        <Button asChild variant="outline" size="sm" className="rounded-full shrink-0">
-          <a href="#book">Book now</a>
+        <Button
+          asChild
+          size="default"
+          className={cn("h-10 shrink-0 rounded-xl px-5 font-semibold", bookingPrimaryButtonClass)}
+        >
+          <a href="#book" className={bookingPrimaryLinkClass}>
+            Book now
+          </a>
         </Button>
       </div>
 
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {featured.map((service) => (
           <li key={service.id}>
-            <Card className="h-full rounded-xl border-border/60 shadow-soft transition-colors hover:border-accent/30">
-              <CardContent className="flex h-full flex-col gap-2 p-4">
+            <Card className="h-full rounded-2xl border-border/60 shadow-soft transition-colors hover:border-accent/30">
+              <CardContent className="flex h-full flex-col gap-3 p-6">
                 <div className="flex items-start gap-2">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/25 text-accent">
                     <Scissors className="h-4 w-4" />

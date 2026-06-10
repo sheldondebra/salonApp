@@ -7,3 +7,9 @@ export type ShellNavItem = {
   /** Match pathname exactly (default: prefix match). */
   exact?: boolean;
 };
+
+export type ShellNavSection = {
+  id: string;
+  label: string;
+  items: ShellNavItem[];
+};

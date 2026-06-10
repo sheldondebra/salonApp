@@ -34,18 +34,25 @@ export function AdminReportsView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    createApiClient(getApiClientOptions())
-      .get<AdminReportPayload>(`/admin/reports?${reportFiltersToQuery(filters)}`)
-      .then(setData)
-      .catch((err) => {
-        setData(null);
-        setError(err instanceof ApiError ? err.message : "Could not load reports");
-      })
-      .finally(() => setLoading(false));
-  }, [filters]);
+  const load = useCallback(
+    (override?: ReportFiltersState) => {
+      const active = override ?? filters;
+      setLoading(true);
+      setError(null);
+      createApiClient(getApiClientOptions())
+        .get<AdminReportPayload>(`/admin/reports?${reportFiltersToQuery(active)}`)
+        .then((payload) => {
+          setData(payload);
+          if (override) setFilters(override);
+        })
+        .catch((err) => {
+          setData(null);
+          setError(err instanceof ApiError ? err.message : "Could not load reports");
+        })
+        .finally(() => setLoading(false));
+    },
+    [filters]
+  );
 
   useEffect(() => {
     load();

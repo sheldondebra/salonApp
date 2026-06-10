@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Appointment extends Model
@@ -73,5 +74,10 @@ class Appointment extends Model
     public function paymentTransactions(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(PaymentTransaction::class);
+    }
+
+    public function attributions(): HasMany
+    {
+        return $this->hasMany(BookingAttribution::class);
     }
 }

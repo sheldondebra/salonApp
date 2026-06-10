@@ -16,6 +16,8 @@ class LocationResource extends JsonResource
             'address_line1' => $this->address_line1,
             'city' => $this->city,
             'country' => $this->country,
+            'latitude' => $this->latitude !== null ? (float) $this->latitude : null,
+            'longitude' => $this->longitude !== null ? (float) $this->longitude : null,
             'is_active' => $this->is_active,
             'label' => collect([$this->name, $this->city])->filter()->join(' · '),
         ];

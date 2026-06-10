@@ -35,7 +35,7 @@ export default function TenantNotFound() {
         <Button asChild variant={slug ? "ghost" : "default"} className="gap-2">
           <Link href="/">
             <Home className="h-4 w-4" />
-            SalonApp home
+            Schedelux home
           </Link>
         </Button>
       </div>

@@ -120,6 +120,7 @@ class InventoryService
         ?User $user = null,
         bool $setAbsolute = false,
         ?int $saleId = null,
+        ?int $purchaseOrderId = null,
     ): StockMovement {
         if ($quantityChange === 0 && ! $setAbsolute) {
             throw new InvalidArgumentException('Quantity change cannot be zero.');
@@ -128,7 +129,7 @@ class InventoryService
         $tenant = $product->tenant ?? Tenant::query()->findOrFail($product->tenant_id);
         $allowNegative = $this->allowNegativeStock($tenant);
 
-        return DB::transaction(function () use ($product, $locationId, $quantityChange, $type, $reason, $notes, $user, $setAbsolute, $allowNegative, $saleId) {
+        return DB::transaction(function () use ($product, $locationId, $quantityChange, $type, $reason, $notes, $user, $setAbsolute, $allowNegative, $saleId, $purchaseOrderId) {
             $stock = InventoryStock::query()->firstOrCreate(
                 [
                     'product_id' => $product->id,
@@ -157,6 +158,7 @@ class InventoryService
                 'location_id' => $locationId,
                 'user_id' => $user?->id,
                 'sale_id' => $saleId,
+                'purchase_order_id' => $purchaseOrderId,
                 'type' => $type,
                 'quantity_change' => $delta,
                 'quantity_before' => $before,

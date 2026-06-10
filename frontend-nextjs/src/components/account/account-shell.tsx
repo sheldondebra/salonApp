@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Heart, Scissors, User, Gift } from "lucide-react";
+import { Calendar, Compass, Heart, Scissors, User, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { clearAuthToken } from "@/lib/auth/session";
@@ -12,6 +12,7 @@ const nav = [
   { href: "profile", label: "Profile", icon: User },
   { href: "bookings", label: "Booking history", icon: Calendar },
   { href: "favorites", label: "Favorites", icon: Heart },
+  { href: "discovery", label: "Discovery", icon: Compass },
   { href: "loyalty", label: "Loyalty points", icon: Gift },
 ] as const;
 

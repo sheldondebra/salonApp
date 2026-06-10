@@ -1,26 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Wallet, AlertTriangle, Server, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
-import { toast } from "sonner";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Wallet, AlertTriangle, Server, CheckCircle2, XCircle } from "lucide-react";
+import type { MnotifySettings } from "@/features/sms/admin-mnotify-settings";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MetricCard } from "@/components/shared/metric-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { createApiClient, ApiError } from "@/lib/api/client";
+import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 
-type ProviderInfo = {
-  provider: string;
-  balance_credits: number;
-  status: string;
-  last_synced_at: string | null;
-  api_configured: boolean;
-  sender_id: string;
-  last_error: string | null;
-  recent_failed_syncs: number;
+type ProviderInfo = MnotifySettings & {
+  recent_failed_syncs?: number;
 };
 
 type Overview = {
@@ -59,19 +51,12 @@ type SyncLogRow = {
   created_at: string;
 };
 
-function providerStatusVariant(status: string): "default" | "secondary" | "warning" | "outline" {
-  if (status === "ok") return "default";
-  if (status === "error") return "warning";
-  return "secondary";
-}
-
 export function AdminSmsResellerHub() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [wallets, setWallets] = useState<WalletRow[]>([]);
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLogRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -95,30 +80,6 @@ export function AdminSmsResellerHub() {
     load();
   }, [load]);
 
-  const syncFromMnotify = async () => {
-    setSyncing(true);
-    try {
-      const res = await createApiClient(getApiClientOptions()).post<{
-        provider: ProviderInfo;
-        sync: { status: string; message: string };
-      }>("/admin/sms-reseller/provider/sync");
-      setOverview((prev) => (prev ? { ...prev, provider: res.provider } : prev));
-      if (res.sync.status === "success") {
-        toast.success(res.sync.message);
-      } else {
-        toast.error(res.sync.message);
-      }
-      const logs = await createApiClient(getApiClientOptions()).get<{ data: SyncLogRow[] }>(
-        "/admin/sms-reseller/provider/sync-logs?per_page=10"
-      );
-      setSyncLogs(Array.isArray(logs.data) ? logs.data : []);
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   if (loading) {
     return <Skeleton className="h-64 rounded-2xl" />;
   }
@@ -127,55 +88,6 @@ export function AdminSmsResellerHub() {
 
   return (
     <div className="space-y-6">
-      <Card className="rounded-2xl border-primary/20 shadow-soft">
-        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-4">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Server className="h-4 w-4" />
-              MNotify master account
-            </CardTitle>
-            <CardDescription>
-              API key is stored in server environment only — never shown here. Sender ID:{" "}
-              <span className="font-medium text-foreground">{provider?.sender_id ?? "—"}</span>
-            </CardDescription>
-          </div>
-          <Button
-            type="button"
-            className="rounded-xl gap-2"
-            onClick={syncFromMnotify}
-            disabled={syncing || !provider?.api_configured}
-          >
-            <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing…" : "Sync from MNotify"}
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={providerStatusVariant(provider?.status ?? "unknown")}>
-              {provider?.status ?? "unknown"}
-            </Badge>
-            {!provider?.api_configured ? (
-              <span className="text-muted-foreground">Set MNOTIFY_API_KEY in backend .env to enable sync.</span>
-            ) : null}
-            {provider?.last_synced_at ? (
-              <span className="text-muted-foreground">
-                Last sync: {new Date(provider.last_synced_at).toLocaleString()}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">Not synced yet</span>
-            )}
-            {(provider?.recent_failed_syncs ?? 0) > 0 ? (
-              <Badge variant="outline" className="border-amber-300 text-amber-800">
-                {provider?.recent_failed_syncs} failed sync(s) in 24h
-              </Badge>
-            ) : null}
-          </div>
-          {provider?.last_error ? (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">{provider.last_error}</p>
-          ) : null}
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="MNotify balance"
@@ -290,7 +202,7 @@ export function AdminSmsResellerHub() {
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No ledger entries yet.</p>
+            <p className="text-sm text-muted-foreground">No activity yet.</p>
           ) : (
             <Table>
               <TableHeader>

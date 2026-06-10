@@ -13,6 +13,7 @@ use App\Models\StaffMember;
 use App\Services\BookingService;
 use App\Services\LoyaltyService;
 use App\Services\NotificationService;
+use App\Services\TenantClientDiscoveryService;
 use App\Support\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class ClientAccountController extends Controller
         protected LoyaltyService $loyalty,
         protected BookingService $booking,
         protected NotificationService $notifications,
+        protected TenantClientDiscoveryService $discovery,
     ) {}
 
     public function tenants(Request $request): JsonResponse
@@ -225,5 +227,15 @@ class ClientAccountController extends Controller
                 'created_at' => $t->created_at?->toIso8601String(),
             ]),
         ]);
+    }
+
+    public function discovery(Request $request): JsonResponse
+    {
+        $tenantId = TenantContext::id();
+        abort_unless($tenantId, 404);
+
+        return response()->json(
+            $this->discovery->feed($tenantId, $request->user())
+        );
     }
 }

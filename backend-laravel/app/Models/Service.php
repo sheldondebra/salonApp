@@ -51,4 +51,9 @@ class Service extends Model
     {
         return $this->staffServices()->whereBool('is_active', true);
     }
+
+    public function appointments(): HasMany
+    {
+        return $this->hasMany(Appointment::class);
+    }
 }
