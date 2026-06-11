@@ -13,6 +13,7 @@ type AppShellProps = {
     subtitle?: string;
     href?: string;
     logo: React.ReactNode;
+    wideLogo?: boolean;
   };
   navSections?: ShellNavSection[];
   navItems?: ShellNavItem[];

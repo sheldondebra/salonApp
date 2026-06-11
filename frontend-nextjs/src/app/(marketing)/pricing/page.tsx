@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Check, Scissors } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+import { SchedeluxLogo } from "@/components/branding/schedelux-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanComparisonTable } from "@/components/pricing/plan-comparison-table";
@@ -8,14 +9,10 @@ import { cn } from "@/lib/utils";
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-brand-surface via-background to-secondary/30">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-            <Scissors className="h-5 w-5" />
-          </span>
-          Schedelux
-        </Link>
+    <div className="min-h-screen bg-white">
+      <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <SchedeluxLogo variant="header" />
         <div className="flex items-center gap-3">
           <Button variant="ghost" asChild>
             <Link href="/login">Sign in</Link>
@@ -24,18 +21,19 @@ export default function PricingPage() {
             <Link href="/register">Get started</Link>
           </Button>
         </div>
+        </div>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 pb-8 pt-4 text-center">
-        <span className="inline-flex rounded-full border border-brand-border bg-card px-4 py-1.5 text-xs font-medium text-accent">
+      <section className="mx-auto max-w-6xl px-6 pb-8 pt-12 text-center lg:pt-16">
+        <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
           Simple, transparent pricing
-        </span>
-        <h1 className="mt-6 text-4xl font-semibold tracking-tight md:text-5xl">
+        </p>
+        <h1 className="mt-4 text-4xl font-bold tracking-tight text-neutral-900 md:text-5xl">
           Plans that grow with your salon
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Online booking, client accounts, loyalty, social login, and analytics — pick the tier that
-          fits your team.
+        <p className="mx-auto mt-4 max-w-2xl text-neutral-600">
+          Booking, POS, finance, SMS, and analytics — pick the tier that matches your team size and
+          branches.
         </p>
       </section>
 

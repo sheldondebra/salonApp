@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { Scissors } from "lucide-react";
+import { SchedeluxLogo } from "@/components/branding/schedelux-logo";
 import { AuthBackLink } from "@/components/auth/auth-back-link";
 
 type AuthLayoutProps = {
@@ -14,12 +13,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-primary/40 via-accent/30 to-background lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-foreground">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/80 text-accent shadow-soft">
-            <Scissors className="h-5 w-5" />
-          </span>
-          Schedelux
-        </Link>
+        <SchedeluxLogo variant="full" priority />
         <div className="max-w-md space-y-4">
           <h2 className="text-4xl font-semibold leading-tight text-balance">
             Beauty booking that feels as premium as your brand
@@ -37,10 +31,7 @@ export function AuthLayout({ title, subtitle, children, footer, back }: AuthLayo
       <main className="flex flex-col justify-center bg-gradient-to-b from-background via-brand-surface/30 to-secondary/20 px-6 py-12 sm:px-12">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 lg:hidden">
-            <Link href="/" className="mb-6 flex items-center gap-2 font-semibold">
-              <Scissors className="h-5 w-5 text-accent" />
-              Schedelux
-            </Link>
+            <SchedeluxLogo variant="header" className="mb-6" priority />
           </div>
           {back ? (
             <div className="mb-6">

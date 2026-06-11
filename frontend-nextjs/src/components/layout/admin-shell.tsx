@@ -19,6 +19,7 @@ import {
   Store,
   Wallet,
 } from "lucide-react";
+import { SchedeluxLogo } from "@/components/branding/schedelux-logo";
 import { Button } from "@/components/ui/button";
 import { clearAuthToken } from "@/lib/auth/session";
 import { AppShell } from "@/components/layout/app-shell";
@@ -212,7 +213,8 @@ export function AdminShell({
         title: "Schedelux",
         subtitle: "Platform admin",
         href: "/admin",
-        logo: <Scissors className="h-5 w-5" />,
+        wideLogo: true,
+        logo: <SchedeluxLogo variant="compact" href={null} className="h-9 w-full" />,
       }}
       navSections={navSections}
       sidebarFooter={signOutFooter}

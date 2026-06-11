@@ -14,6 +14,8 @@ type SidebarProps = {
     subtitle?: string;
     href?: string;
     logo: React.ReactNode;
+    /** Use full horizontal logo row instead of small icon tile */
+    wideLogo?: boolean;
   };
   sections?: ShellNavSection[];
   items?: ShellNavItem[];
@@ -90,7 +92,16 @@ export function Sidebar({ brand, sections, items, footer, className, onNavigate 
       .filter((section) => section.items.length > 0);
   }, [navSections, query]);
 
-  const brandInner = (
+  const brandInner = brand.wideLogo ? (
+    <div className="min-w-0 space-y-2">
+      <div className="overflow-hidden rounded-xl px-1 py-0.5">{brand.logo}</div>
+      {brand.subtitle ? (
+        <p className="truncate text-xs text-muted-foreground">{brand.subtitle}</p>
+      ) : brand.title ? (
+        <p className="truncate text-xs text-muted-foreground">{brand.title}</p>
+      ) : null}
+    </div>
+  ) : (
     <>
       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-foreground shadow-soft ring-1 ring-white/40">
         {brand.logo}

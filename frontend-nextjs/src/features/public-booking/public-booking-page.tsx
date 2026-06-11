@@ -24,6 +24,7 @@ import { defaultOpeningHours, formatHoursForDisplay } from "@/lib/branding/openi
 import { createApiClient } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
 import type { Review, Service, StaffMember, StoreProduct, Tenant } from "@/lib/api/types";
+import { SchedeluxLogo } from "@/components/branding/schedelux-logo";
 import { FloatingWhatsAppButton } from "@/components/shared/floating-whatsapp-button";
 import { bookingPrimaryButtonClass, bookingPrimaryLinkClass } from "@/features/booking/booking-ui";
 import {
@@ -404,9 +405,9 @@ function PublicBookingLayout({
 
       <footer className="border-t border-border/60 py-12 text-center text-sm text-muted-foreground">
         {showPlatformFooter ? (
-          <Link href="/" className="inline-flex items-center gap-2 hover:text-foreground">
-            <Scissors className="h-4 w-4 text-accent" />
-            Powered by Schedelux
+          <Link href="/" className="inline-flex flex-col items-center gap-2 hover:opacity-90">
+            <SchedeluxLogo variant="compact" />
+            <span className="text-xs">Powered by Schedelux</span>
           </Link>
         ) : (
           <span>{tenant.name}</span>

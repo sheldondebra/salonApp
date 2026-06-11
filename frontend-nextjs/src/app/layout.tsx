@@ -24,7 +24,8 @@ export const metadata: Metadata = {
   },
   description: "Premium multi-tenant beauty booking SaaS for salons, spas, and wellness studios",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/schedelux-logo.png",
+    apple: "/schedelux-logo.png",
   },
 };
 
