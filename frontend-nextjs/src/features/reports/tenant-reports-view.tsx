@@ -18,7 +18,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3, Calendar, DollarSign, MessageSquare, Users } from "lucide-react";
+import { Calendar, DollarSign, MessageSquare, Users } from "lucide-react";
 import { DashboardSkeleton } from "@/components/shared/loading-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError, createApiClient } from "@/lib/api/client";
@@ -29,7 +29,7 @@ import { ChartCard } from "./chart-card";
 import { hasNumericActivity, hasRows } from "./chart-utils";
 import { defaultReportFilters, reportFiltersToQuery } from "./report-query";
 import { CHART_AXIS, CHART_GRID, ChartTooltipBox, formatChartMoney } from "./chart-theme";
-import { ReportsHero, ReportsSection, ReportsStatCard, ReportsStatGrid } from "./reports-ui";
+import { ReportsPageHeader, ReportsSection, ReportsStatCard, ReportsStatGrid } from "./reports-ui";
 import { cn } from "@/lib/utils";
 import type { ReportFiltersState, TenantReportPayload } from "./types";
 
@@ -105,11 +105,9 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         loading={loading}
       />
 
-      <ReportsHero
+      <ReportsPageHeader
         periodFrom={filters.from}
         periodTo={filters.to}
-        revenueLabel="Total revenue"
-        revenueValue={formatMoney(summary?.revenue_cents ?? 0, currency)}
         bookings={summary?.bookings ?? 0}
       />
 
@@ -129,31 +127,24 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         <ReportsStatCard
           label="Customers"
           value={String(summary?.customers ?? 0)}
-          hint={`${summary?.new_customers ?? 0} new`}
           icon={Users}
           iconClassName="bg-violet-500/10 text-violet-600"
         />
         <ReportsStatCard
-          label="SMS sent"
+          label="SMS"
           value={String(summary?.sms_sent ?? 0)}
+          hint={`${summary?.sms_failed ?? 0} failed`}
           icon={MessageSquare}
           iconClassName="bg-sky-500/10 text-sky-600"
         />
-        <ReportsStatCard
-          label="SMS failed"
-          value={String(summary?.sms_failed ?? 0)}
-          icon={MessageSquare}
-          iconClassName="bg-amber-500/10 text-amber-600"
-        />
-        <ReportsStatCard
-          label="New customers"
-          value={String(summary?.new_customers ?? 0)}
-          icon={BarChart3}
-          iconClassName="bg-primary/15 text-primary"
-        />
       </ReportsStatGrid>
 
-      <ReportsSection title="Revenue & bookings" description="Daily trends for the selected period">
+      <ReportsSection
+        title="Revenue & bookings"
+        description="Daily trends for the selected period"
+        defaultOpen
+        collapsible
+      >
         <div className={cn("grid w-full min-w-0 gap-4 lg:grid-cols-2 lg:gap-5", chartFade)}>
           <ChartCard
             title="Revenue"
@@ -229,7 +220,11 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         </div>
       </ReportsSection>
 
-      <ReportsSection title="Customers & messaging" description="Growth and SMS delivery">
+      <ReportsSection
+        title="Customers & messaging"
+        description="Growth and SMS delivery"
+        collapsible
+      >
         <div className={cn("grid w-full min-w-0 gap-4 lg:grid-cols-2 lg:gap-5", chartFade)}>
           <ChartCard
             title="New customers"
@@ -283,7 +278,11 @@ export function TenantReportsView({ tenantSlug, currency = "GHS" }: TenantReport
         </div>
       </ReportsSection>
 
-      <ReportsSection title="Team & services" description="Performance breakdown">
+      <ReportsSection
+        title="Team & services"
+        description="Performance breakdown"
+        collapsible
+      >
         <div className={cn("grid w-full min-w-0 gap-4 lg:grid-cols-2 lg:gap-5", chartFade)}>
           <ChartCard
             title="Staff performance"

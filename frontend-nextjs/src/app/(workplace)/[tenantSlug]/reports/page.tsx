@@ -9,6 +9,7 @@ export default function ReportsPage({ params }: { params: { tenantSlug: string }
   return (
     <WorkplacePageShell
       tenantSlug={params.tenantSlug}
+      title="Reports"
       description="Revenue, bookings, staff, and SMS analytics"
       skeletonVariant="dashboard"
     >

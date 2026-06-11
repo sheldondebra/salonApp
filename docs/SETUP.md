@@ -49,6 +49,11 @@ SESSION_DOMAIN=localhost
 
 TENANT_WORKPLACE_HOST=workplace.localhost
 TENANT_ROOT_DOMAIN=localhost
+
+# Ops Monitor (API health dashboard at http://localhost:8000/ops)
+OPS_MONITOR_ENABLED=true
+OPS_MONITOR_USERNAME=ops
+OPS_MONITOR_PASSWORD=changeme
 ```
 
 ### `frontend-nextjs/.env.local`
@@ -58,6 +63,20 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WORKPLACE_HOST=workplace.localhost:3000
 NEXT_PUBLIC_ROOT_DOMAIN=localhost
+```
+
+## Ops Monitor (API health dashboard)
+
+Built-in Laravel dashboard (Telescope-style) for local/staging debugging:
+
+1. Open **http://localhost:8000/ops/login**
+2. Sign in with `OPS_MONITOR_USERNAME` / `OPS_MONITOR_PASSWORD` from `.env`
+3. Use **Overview**, **API Routes**, **Requests**, **Errors**, and **Laravel Log**
+
+Every `/api/*` request is recorded automatically (status, duration, route, error message). Set `OPS_MONITOR_ENABLED=false` in production unless you need it.
+
+```bash
+php artisan ops:prune-logs   # remove logs older than retention (default 14 days)
 ```
 
 ## Database

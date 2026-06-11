@@ -3,14 +3,15 @@
 import Link from "next/link";
 import {
   Activity,
-  BarChart3,
   Boxes,
   CircleDollarSign,
+  ClipboardList,
   Compass,
   Crown,
   CreditCard,
   DoorOpen,
   FileBarChart2,
+  ListOrdered,
   Gift,
   Globe2,
   LayoutDashboard,
@@ -54,6 +55,25 @@ export function WorkplaceMoreView({ tenantSlug, tenantName }: WorkplaceMoreViewP
   const { user, loading: userLoading } = useSessionUser();
 
   const sections: { title: string; links: MoreLink[] }[] = [
+    {
+      title: "Bookings",
+      links: [
+        {
+          href: `${base}/waitlist`,
+          label: "Waitlist",
+          description: "Walk-ins and callback requests",
+          icon: ListOrdered,
+          permission: Permissions.bookings.view,
+        },
+        {
+          href: `${base}/payments`,
+          label: "Payments",
+          description: "Booking payment history",
+          icon: CreditCard,
+          permission: Permissions.bookings.view,
+        },
+      ],
+    },
     {
       title: "Daily tools",
       links: [
@@ -146,12 +166,17 @@ export function WorkplaceMoreView({ tenantSlug, tenantName }: WorkplaceMoreViewP
           icon: Smartphone,
           permission: Permissions.payment_requests.view,
         },
+      ],
+    },
+    {
+      title: "People & forms",
+      links: [
         {
-          href: `${base}/payments`,
-          label: "Payments",
-          description: "Booking payment history",
-          icon: CreditCard,
-          permission: Permissions.bookings.view,
+          href: `${base}/forms`,
+          label: "Forms",
+          description: "Client intake and consent forms",
+          icon: ClipboardList,
+          permission: Permissions.forms.view,
         },
       ],
     },
@@ -164,13 +189,6 @@ export function WorkplaceMoreView({ tenantSlug, tenantName }: WorkplaceMoreViewP
           description: "Locations and addresses",
           icon: MapPin,
           permission: [Permissions.services.view, Permissions.settings.manage],
-        },
-        {
-          href: `${base}/reports`,
-          label: "Reports",
-          description: "Analytics and exports",
-          icon: BarChart3,
-          permission: Permissions.analytics.view,
         },
         {
           href: `${base}/reviews`,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -84,22 +84,70 @@ const navDefs = [
   { segment: "settings/white-label", label: "Your brand", icon: Settings, permission: Permissions.settings.manage },
 ];
 
-const navSectionDefs: { id: string; label: string; segments: string[] }[] = [
-  { id: "overview", label: "Overview", segments: ["dashboard", "reports"] },
-  { id: "bookings", label: "Bookings", segments: ["appointments", "waitlist", "payments", "payment-requests"] },
+const navSectionDefs: {
+  id: string;
+  label: string;
+  segments: string[];
+  defaultOpen?: boolean;
+}[] = [
+  { id: "overview", label: "Overview", defaultOpen: true, segments: ["dashboard", "reports"] },
+  {
+    id: "bookings",
+    label: "Bookings",
+    segments: ["appointments", "waitlist", "payments", "payment-requests"],
+  },
   { id: "money", label: "Money", segments: ["finance", "wallet"] },
   {
     id: "retail",
     label: "Retail",
-    segments: ["services", "inventory", "memberships", "packages", "gift-cards", "bundles", "purchase-orders", "pos"],
+    segments: [
+      "pos",
+      "services",
+      "inventory",
+      "memberships",
+      "packages",
+      "gift-cards",
+      "bundles",
+      "purchase-orders",
+    ],
   },
-  { id: "reviews", label: "Reviews", segments: ["reviews"] },
-  { id: "analytics", label: "Analytics", segments: ["kpi", "analytics/occupancy", "analytics/retention", "analytics/branch-comparison", "report-builder", "scheduled-reports"] },
   { id: "people", label: "People", segments: ["staff", "clients", "forms"] },
-  { id: "setup", label: "Setup", segments: ["branches", "settings"] },
-  { id: "marketing", label: "Marketing", segments: ["marketing/abandoned-bookings", "marketing/rebooking", "marketing/social-links"] },
-  { id: "marketplace", label: "Marketplace", segments: ["marketplace/profile", "marketplace/featured", "marketplace/commissions"] },
-  { id: "enterprise", label: "Advanced", segments: ["settings/integrations", "staff/chair-rentals", "branches/groups", "approvals", "settings/white-label"] },
+  {
+    id: "analytics",
+    label: "Analytics",
+    segments: [
+      "kpi",
+      "analytics/occupancy",
+      "analytics/retention",
+      "analytics/branch-comparison",
+      "report-builder",
+      "scheduled-reports",
+      "reviews",
+    ],
+  },
+  {
+    id: "marketing",
+    label: "Marketing",
+    segments: ["marketing/abandoned-bookings", "marketing/rebooking", "marketing/social-links"],
+  },
+  {
+    id: "marketplace",
+    label: "Marketplace",
+    segments: ["marketplace/profile", "marketplace/featured", "marketplace/commissions"],
+  },
+  {
+    id: "setup",
+    label: "Setup",
+    segments: [
+      "branches",
+      "settings",
+      "settings/integrations",
+      "settings/white-label",
+      "staff/chair-rentals",
+      "branches/groups",
+      "approvals",
+    ],
+  },
 ];
 
 type WorkplaceShellProps = {
@@ -132,20 +180,25 @@ export function WorkplaceShell({
 
   const navBySegment = new Map(visibleNav.map((item) => [item.segment, item]));
 
-  const navSections: ShellNavSection[] = navSectionDefs
-    .map((section) => ({
-      id: section.id,
-      label: section.label,
-      items: section.segments
-        .map((segment) => navBySegment.get(segment))
-        .filter((item): item is (typeof navDefs)[number] => item != null)
-        .map((item) => ({
-          href: `${base}/${item.segment}`,
-          label: item.label,
-          icon: item.icon,
-        })),
-    }))
-    .filter((section) => section.items.length > 0);
+  const navSections: ShellNavSection[] = useMemo(
+    () =>
+      navSectionDefs
+        .map((section) => ({
+          id: section.id,
+          label: section.label,
+          defaultOpen: section.defaultOpen,
+          items: section.segments
+            .map((segment) => navBySegment.get(segment))
+            .filter((item): item is (typeof navDefs)[number] => item != null)
+            .map((item) => ({
+              href: `${base}/${item.segment}`,
+              label: item.label,
+              icon: item.icon,
+            })),
+        }))
+        .filter((section) => section.items.length > 0),
+    [base, navBySegment]
+  );
 
   const sidebarFooter = (
     <div className="space-y-2">

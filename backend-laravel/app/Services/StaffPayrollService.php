@@ -19,7 +19,7 @@ class StaffPayrollService
             return str_repeat('•', 6);
         }
 
-        return str_repeat('•', min(12, max(6, $len - 4)).substr($value, -4);
+        return str_repeat('•', min(12, max(6, $len - 4))) . substr($value, -4);
     }
 
     public function profileForStaff(StaffMember $staff): StaffPayrollProfile

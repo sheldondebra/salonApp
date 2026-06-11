@@ -38,9 +38,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\RecordOpsRequest::class,
+        ]);
     })
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('bookings:send-reminders')->hourly();
+        $schedule->command('ops:prune-logs')->daily();
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*'));

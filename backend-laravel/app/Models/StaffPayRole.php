@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use App\Models\Concerns\FixesPgsqlBooleans;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StaffPayRole extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, FixesPgsqlBooleans;
 
     protected $fillable = [
         'tenant_id',

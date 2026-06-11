@@ -108,7 +108,7 @@ export function DashboardStatGrid({
         {children}
       </div>
       {/* Tablet+ grid */}
-      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-3">{children}</div>
     </div>
   );
 }

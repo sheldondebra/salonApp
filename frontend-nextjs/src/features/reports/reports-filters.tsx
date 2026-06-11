@@ -41,7 +41,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm shadow-sm"
+        className="h-10 w-full rounded-lg border border-input bg-card px-3 text-sm"
       >
         {children}
       </select>
@@ -82,10 +82,10 @@ export function ReportsFilters({
     (value.location_id || value.staff_id || value.service_id || value.status);
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="rounded-xl border border-border/60 bg-card p-3 shadow-soft sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div
-          className="inline-flex rounded-xl border border-border/60 bg-muted/40 p-1"
+          className="inline-flex w-fit rounded-lg border border-border/60 bg-muted/40 p-1"
           role="group"
           aria-label="Date range presets"
         >
@@ -99,7 +99,7 @@ export function ReportsFilters({
                 onClick={() => applyPreset(preset.days)}
                 disabled={loading}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
+                  "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors sm:text-sm",
                   active
                     ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -111,101 +111,95 @@ export function ReportsFilters({
           })}
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="ml-auto rounded-xl sm:hidden"
-          onClick={() => setAdvancedOpen((open) => !open)}
-        >
-          <SlidersHorizontal className="mr-2 h-4 w-4" />
-          Filters
-          {hasAdvancedFilters ? (
-            <span className="ml-2 rounded-full bg-primary/15 px-1.5 text-[10px] font-bold text-primary">
-              ON
-            </span>
-          ) : null}
-          <ChevronDown
-            className={cn("ml-1 h-4 w-4 transition-transform", advancedOpen && "rotate-180")}
-          />
-        </Button>
-      </div>
-
-      <div
-        className={cn(
-          "rounded-2xl border border-border/60 bg-card shadow-soft",
-          !advancedOpen && "hidden sm:block"
-        )}
-      >
-        <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">From</Label>
+        <div className="grid flex-1 gap-3 sm:grid-cols-2 sm:max-w-xs">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">From</Label>
             <Input
               type="date"
               value={value.from}
               onChange={(e) => patch({ from: e.target.value })}
-              className="h-11 rounded-xl"
+              className="h-10 rounded-lg"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">To</Label>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">To</Label>
             <Input
               type="date"
               value={value.to}
               onChange={(e) => patch({ to: e.target.value })}
-              className="h-11 rounded-xl"
+              className="h-10 rounded-lg"
             />
           </div>
+        </div>
 
+        <div className="flex gap-2 sm:ml-auto">
           {showBranchStaffService && options ? (
-            <>
-              <SelectField label="Branch" value={value.location_id} onChange={(v) => patch({ location_id: v })}>
-                <option value="">All branches</option>
-                {options.locations.map((l) => (
-                  <option key={l.id} value={String(l.id)}>
-                    {l.name}
-                  </option>
-                ))}
-              </SelectField>
-              <SelectField label="Staff" value={value.staff_id} onChange={(v) => patch({ staff_id: v })}>
-                <option value="">All staff</option>
-                {options.staff.map((s) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </option>
-                ))}
-              </SelectField>
-              <SelectField label="Service" value={value.service_id} onChange={(v) => patch({ service_id: v })}>
-                <option value="">All services</option>
-                {options.services.map((s) => (
-                  <option key={s.id} value={String(s.id)}>
-                    {s.name}
-                  </option>
-                ))}
-              </SelectField>
-              <SelectField label="Status" value={value.status} onChange={(v) => patch({ status: v })}>
-                <option value="">All statuses</option>
-                {options.statuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s.replace(/_/g, " ")}
-                  </option>
-                ))}
-              </SelectField>
-            </>
-          ) : null}
-
-          <div className="flex items-end sm:col-span-2 lg:col-span-1">
             <Button
               type="button"
-              className="h-11 w-full rounded-xl"
-              onClick={() => onApply()}
-              disabled={loading}
+              variant="outline"
+              size="sm"
+              className="h-10 rounded-lg"
+              onClick={() => setAdvancedOpen((open) => !open)}
             >
-              {loading ? "Loading…" : "Apply filters"}
+              <SlidersHorizontal className="mr-2 h-4 w-4" />
+              Filters
+              {hasAdvancedFilters ? (
+                <span className="ml-2 rounded-full bg-primary/15 px-1.5 text-[10px] font-bold text-primary">
+                  ON
+                </span>
+              ) : null}
+              <ChevronDown
+                className={cn("ml-1 h-4 w-4 transition-transform", advancedOpen && "rotate-180")}
+              />
             </Button>
-          </div>
+          ) : null}
+          <Button
+            type="button"
+            className="h-10 rounded-lg px-5"
+            onClick={() => onApply()}
+            disabled={loading}
+          >
+            {loading ? "Loading…" : "Apply"}
+          </Button>
         </div>
       </div>
+
+      {advancedOpen && showBranchStaffService && options ? (
+        <div className="mt-4 grid gap-3 border-t border-border/40 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SelectField label="Branch" value={value.location_id} onChange={(v) => patch({ location_id: v })}>
+            <option value="">All branches</option>
+            {options.locations.map((l) => (
+              <option key={l.id} value={String(l.id)}>
+                {l.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Staff" value={value.staff_id} onChange={(v) => patch({ staff_id: v })}>
+            <option value="">All staff</option>
+            {options.staff.map((s) => (
+              <option key={s.id} value={String(s.id)}>
+                {s.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Service" value={value.service_id} onChange={(v) => patch({ service_id: v })}>
+            <option value="">All services</option>
+            {options.services.map((s) => (
+              <option key={s.id} value={String(s.id)}>
+                {s.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField label="Status" value={value.status} onChange={(v) => patch({ status: v })}>
+            <option value="">All statuses</option>
+            {options.statuses.map((s) => (
+              <option key={s} value={s}>
+                {s.replace(/_/g, " ")}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+      ) : null}
     </div>
   );
 }

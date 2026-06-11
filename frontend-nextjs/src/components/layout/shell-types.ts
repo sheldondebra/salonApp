@@ -12,4 +12,6 @@ export type ShellNavSection = {
   id: string;
   label: string;
   items: ShellNavItem[];
+  /** Expanded on first load when no route matches this section. */
+  defaultOpen?: boolean;
 };

@@ -29,13 +29,13 @@ export function ChartCard({
         className
       )}
     >
-      <div className="border-b border-border/40 px-4 py-3.5 sm:px-5">
-        <h4 className="text-sm font-semibold text-foreground sm:text-base">{title}</h4>
+      <div className="px-4 py-3 sm:px-4">
+        <h4 className="text-sm font-semibold text-foreground">{title}</h4>
         {description ? (
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{description}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      <div className={cn("min-h-0 w-full min-w-0 px-2 pb-3 pt-2 sm:px-3 sm:pb-4", heightClass)}>
+      <div className={cn("min-h-0 w-full min-w-0 px-2 pb-3 pt-0 sm:px-3 sm:pb-4", heightClass)}>
         {isEmpty ? <ChartEmpty message={emptyMessage} /> : children}
       </div>
     </div>
