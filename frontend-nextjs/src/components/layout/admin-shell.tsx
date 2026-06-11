@@ -13,7 +13,6 @@ import {
   LifeBuoy,
   LogOut,
   MessageSquare,
-  Scissors,
   Server,
   Settings,
   Store,
