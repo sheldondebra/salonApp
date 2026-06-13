@@ -15,7 +15,7 @@ import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth/session";
 import { redirectPathAfterAuth } from "@/lib/auth/redirect-after-auth";
-import { loginHref, registerHref } from "@/lib/auth/auth-flow-links";
+import { registerHref } from "@/lib/auth/auth-flow-links";
 import type { User } from "@/lib/api/types";
 
 type LoginResponse = { token: string; user: User };
