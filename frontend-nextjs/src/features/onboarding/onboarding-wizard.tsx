@@ -35,6 +35,7 @@ import { FieldWithIcon } from "@/components/onboarding/field-with-icon";
 import { FileUploadButton } from "@/components/onboarding/file-upload-button";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { loginHref } from "@/lib/auth/auth-flow-links";
 import {
   COUNTRY_OPTIONS,
   CURRENCY_OPTIONS,
@@ -159,7 +160,7 @@ export function OnboardingWizard() {
 
   useEffect(() => {
     if (!getApiClientOptions().token) {
-      router.replace("/login");
+      router.replace(loginHref({ next: "/onboarding" }));
       return;
     }
     createApiClient(getApiClientOptions())

@@ -53,7 +53,7 @@ class RecordOpsRequest
 
             OpsRequestLog::query()->create([
                 'method' => $request->method(),
-                'uri' => '/'.ltrim($request->path(), '/'),
+                'uri' => Str::limit('/'.ltrim($request->path(), '/'), 512, ''),
                 'route_name' => $route?->getName(),
                 'route_action' => $route ? (string) $route->getActionName() : null,
                 'status_code' => $status,

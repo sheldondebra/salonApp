@@ -51,12 +51,24 @@ export function salonWorkspacePath(user: User): string {
   return `/${DEFAULT_CLIENT_TENANT}/dashboard`;
 }
 
-export function redirectPathAfterAuth(user: User, next?: string | null): string {
+export function redirectPathAfterAuth(
+  user: User,
+  next?: string | null,
+  plan?: string | null
+): string {
   if (next && next.startsWith("/")) {
     if (isPlatformOnlyPath(next) && !canAccessPlatformAdmin(user)) {
       return salonWorkspacePath(user);
     }
     return next;
+  }
+
+  if (
+    plan &&
+    user.account_intent === "salon_owner" &&
+    user.onboarding_status === "payment_pending"
+  ) {
+    return `/checkout?plan=${encodeURIComponent(plan)}`;
   }
 
   if (canAccessPlatformAdmin(user)) {

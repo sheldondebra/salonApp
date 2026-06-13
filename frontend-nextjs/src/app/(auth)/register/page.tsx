@@ -16,6 +16,7 @@ import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { setAuthToken } from "@/lib/auth/session";
 import { redirectPathAfterAuth } from "@/lib/auth/redirect-after-auth";
+import { loginHref } from "@/lib/auth/auth-flow-links";
 import { plans } from "@/lib/pricing/plans";
 import type { User as UserType } from "@/lib/api/types";
 
@@ -79,7 +80,13 @@ function RegisterForm() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-accent hover:underline">
+          <Link
+            href={loginHref({
+              plan: isSalon ? planParam : null,
+              intent: isSalon ? "salon" : null,
+            })}
+            className="font-medium text-accent hover:underline"
+          >
             Sign in
           </Link>
         </>

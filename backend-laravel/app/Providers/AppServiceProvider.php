@@ -42,6 +42,7 @@ use App\Support\AdminRouteBindings;
 use App\Support\PermissionChecker;
 use App\Support\PgsqlBoolean;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -60,6 +61,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->configureApplicationUrl();
+        $this->configureSessionForRequest();
+
         PermissionChecker::registerGateBefore();
         PgsqlBoolean::registerMacros();
         AdminRouteBindings::register();
@@ -85,5 +89,61 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('adjustFinance', [FinancePolicy::class, 'adjustFinance']);
         Gate::define('viewFinancePayroll', [FinancePolicy::class, 'viewFinancePayroll']);
         Gate::define('viewOwnFinancePayroll', [FinancePolicy::class, 'viewOwnFinancePayroll']);
+    }
+
+    /**
+     * When Laravel runs in a subdirectory (e.g. Hostinger /salonApp), route() and
+     * redirects must include that path. Prefer the live request base URL over APP_URL
+     * when they differ so /salonApp/ops/* links are not generated as /ops/*.
+     */
+    protected function configureApplicationUrl(): void
+    {
+        if (! $this->app->runningInConsole() && $this->app->bound('request')) {
+            $request = $this->app->make('request');
+            $subdirectory = $request->getBaseUrl();
+
+            if ($subdirectory !== '') {
+                URL::forceRootUrl(rtrim($request->getSchemeAndHttpHost().$subdirectory, '/'));
+
+                return;
+            }
+        }
+
+        if ($root = rtrim((string) config('app.url'), '/')) {
+            URL::forceRootUrl($root);
+        }
+    }
+
+    /**
+     * SESSION_DOMAIN=localhost is correct for local dev only. On Hostinger the request
+     * host is srv1646751.hstgr.cloud — localhost cookies are ignored by the browser
+     * and every POST fails CSRF validation (419 Page Expired).
+     */
+    protected function configureSessionForRequest(): void
+    {
+        if ($this->app->runningInConsole() || ! $this->app->bound('request')) {
+            return;
+        }
+
+        $request = $this->app->make('request');
+        $host = strtolower($request->getHost());
+        $localHosts = ['localhost', '127.0.0.1', '[::1]', '::1'];
+
+        $configuredDomain = config('session.domain');
+        if (is_string($configuredDomain) && $configuredDomain !== '') {
+            $domainBare = strtolower(preg_replace('/^www\./', '', $configuredDomain));
+            $hostBare = strtolower(preg_replace('/^www\./', '', $host));
+
+            if (in_array($domainBare, $localHosts, true) && ! in_array($host, $localHosts, true)) {
+                config(['session.domain' => null]);
+            } elseif ($domainBare !== $hostBare && ! str_ends_with($hostBare, '.'.$domainBare)) {
+                // Mismatch (e.g. copied .env) — let the cookie default to the request host.
+                config(['session.domain' => null]);
+            }
+        }
+
+        if (config('session.secure') && ! $request->isSecure()) {
+            config(['session.secure' => false]);
+        }
     }
 }

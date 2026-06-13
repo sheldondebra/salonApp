@@ -12,6 +12,7 @@ import { ApplyCouponField } from "@/features/coupons/apply-coupon-field";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { getApiClientOptions } from "@/lib/auth/session";
+import { loginHref, registerHref } from "@/lib/auth/auth-flow-links";
 import { formatMoney } from "@/lib/pricing/format-money";
 import { plans } from "@/lib/pricing/plans";
 import type { BillingPlan } from "@/lib/api/types";
@@ -29,11 +30,20 @@ function CheckoutForm() {
   const [finalCents, setFinalCents] = useState(0);
   const [provider, setProvider] = useState<"paystack" | "flutterwave">("paystack");
   const [loading, setLoading] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     if (!getApiClientOptions().token) {
-      router.replace(`/register?plan=${planId}&intent=salon`);
+      router.replace(
+        loginHref({
+          plan: planId,
+          intent: "salon",
+          next: `/checkout?plan=${encodeURIComponent(planId)}`,
+        })
+      );
+      return;
     }
+    setAuthChecked(true);
   }, [planId, router]);
 
   useEffect(() => {
@@ -71,6 +81,14 @@ function CheckoutForm() {
   }
 
   const amountLabel = formatMoney(finalCents, currency);
+
+  if (!authChecked) {
+    return (
+      <AuthLayout title="Complete your subscription" subtitle="Checking your session…">
+        <p className="py-8 text-center text-sm text-muted-foreground">One moment…</p>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout
@@ -155,6 +173,13 @@ function CheckoutForm() {
           Invoice and receipt will be emailed after payment.{" "}
           <Link href="/pricing" className="text-accent hover:underline">
             Change plan
+          </Link>
+          {" · "}
+          <Link
+            href={registerHref({ plan: planId, intent: "salon" })}
+            className="text-accent hover:underline"
+          >
+            Use a different account
           </Link>
         </p>
       </div>

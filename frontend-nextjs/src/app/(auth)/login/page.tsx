@@ -15,6 +15,7 @@ import { SocialLoginButtons } from "@/components/auth/social-login-buttons";
 import { createApiClient, ApiError } from "@/lib/api/client";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth/session";
 import { redirectPathAfterAuth } from "@/lib/auth/redirect-after-auth";
+import { loginHref, registerHref } from "@/lib/auth/auth-flow-links";
 import type { User } from "@/lib/api/types";
 
 type LoginResponse = { token: string; user: User };
@@ -28,6 +29,9 @@ function LoginForm() {
   const [checkingSession, setCheckingSession] = useState(true);
   const submitting = useRef(false);
 
+  const plan = searchParams.get("plan");
+  const intent = searchParams.get("intent");
+
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
@@ -40,14 +44,14 @@ function LoginForm() {
       .get<{ user: User }>("/me")
       .then((res) => {
         if (res.user) {
-          router.replace(redirectPathAfterAuth(res.user, next));
+          router.replace(redirectPathAfterAuth(res.user, next, plan));
         }
       })
       .catch(() => {
         clearAuthToken();
       })
       .finally(() => setCheckingSession(false));
-  }, [router, searchParams]);
+  }, [router, searchParams, plan]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +72,7 @@ function LoginForm() {
 
       setAuthToken(res.token);
       const next = searchParams.get("next");
-      const destination = redirectPathAfterAuth(res.user, next);
+      const destination = redirectPathAfterAuth(res.user, next, plan);
 
       toast.success(`Welcome back, ${res.user.name}`);
 
@@ -109,7 +113,10 @@ function LoginForm() {
       footer={
         <>
           New here?{" "}
-          <Link href="/register" className="font-medium text-accent hover:underline">
+          <Link
+            href={registerHref({ plan, intent: intent ?? (plan ? "salon" : null) })}
+            className="font-medium text-accent hover:underline"
+          >
             Create an account
           </Link>
         </>

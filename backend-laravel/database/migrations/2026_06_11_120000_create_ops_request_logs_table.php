@@ -11,7 +11,8 @@ return new class extends Migration
         Schema::create('ops_request_logs', function (Blueprint $table) {
             $table->id();
             $table->string('method', 12);
-            $table->string('uri', 2048);
+            // Keep index-friendly on MySQL (utf8mb4 index limit 3072 bytes).
+            $table->string('uri', 512);
             $table->string('route_name')->nullable();
             $table->string('route_action')->nullable();
             $table->unsignedSmallInteger('status_code');

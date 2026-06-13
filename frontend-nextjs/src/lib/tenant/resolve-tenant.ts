@@ -14,15 +14,13 @@ function appUrlHost(): string | null {
   }
 }
 
-function isPlatformHost(normalizedHost: string): boolean {
-  const rootDomain = env.rootDomain.toLowerCase();
+/** Treat apex and www as the same host (schedelux.online === www.schedelux.online). */
+function bareHost(host: string): string {
+  return host.replace(/^www\./, "");
+}
 
-  if (
-    normalizedHost === "localhost" ||
-    normalizedHost === "127.0.0.1" ||
-    normalizedHost === rootDomain ||
-    normalizedHost === `www.${rootDomain}`
-  ) {
+function isPlatformHost(normalizedHost: string): boolean {
+  if (normalizedHost === "localhost" || normalizedHost === "127.0.0.1") {
     return true;
   }
 
@@ -31,11 +29,15 @@ function isPlatformHost(normalizedHost: string): boolean {
     return true;
   }
 
+  const hostBare = bareHost(normalizedHost);
+  const rootBare = bareHost(env.rootDomain.toLowerCase());
+
+  if (hostBare === rootBare) {
+    return true;
+  }
+
   const configuredAppHost = appUrlHost();
-  if (
-    configuredAppHost &&
-    (normalizedHost === configuredAppHost || normalizedHost === `www.${configuredAppHost}`)
-  ) {
+  if (configuredAppHost && hostBare === bareHost(configuredAppHost)) {
     return true;
   }
 

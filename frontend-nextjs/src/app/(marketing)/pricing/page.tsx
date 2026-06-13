@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlanComparisonTable } from "@/components/pricing/plan-comparison-table";
 import { plans } from "@/lib/pricing/plans";
+import { loginHref, registerHref } from "@/lib/auth/auth-flow-links";
 import { cn } from "@/lib/utils";
 
 export default function PricingPage() {
@@ -83,19 +84,27 @@ export default function PricingPage() {
                 ) : null}
               </ul>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-2">
               <Button className="w-full" variant={plan.highlighted ? "default" : "outline"} asChild>
                 <Link
                   href={
                     plan.id === "enterprise"
                       ? "mailto:sales@salonapp.demo"
-                      : `/register?plan=${plan.id}&intent=salon`
+                      : registerHref({ plan: plan.id, intent: "salon" })
                   }
                 >
                   {plan.cta}
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
+              {plan.id !== "enterprise" ? (
+                <Link
+                  href={loginHref({ plan: plan.id, intent: "salon" })}
+                  className="text-center text-xs text-muted-foreground hover:text-accent hover:underline"
+                >
+                  Already have an account? Sign in
+                </Link>
+              ) : null}
             </CardFooter>
           </Card>
         ))}

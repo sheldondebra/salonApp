@@ -399,7 +399,7 @@ class OpsMonitorService
     protected function probeUrl(string $path): array
     {
         try {
-            $baseUrl = rtrim((string) config('app.url'), '/');
+            $baseUrl = $this->applicationBaseUrl();
             $started = microtime(true);
 
             if ($this->shouldProbeInternally($baseUrl)) {
@@ -451,6 +451,15 @@ class OpsMonitorService
         }
 
         return in_array(strtolower($host), ['localhost', '127.0.0.1', '0.0.0.0', '[::1]', '::1'], true);
+    }
+
+    protected function applicationBaseUrl(): string
+    {
+        if (! app()->runningInConsole() && app()->bound('request')) {
+            return rtrim(url(''), '/');
+        }
+
+        return rtrim((string) config('app.url'), '/');
     }
 
     protected function channelLabel(string $channel): string

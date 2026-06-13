@@ -29,7 +29,7 @@ class TenantResolver
             }
         }
 
-        $host = strtolower($request->getHost());
+        $host = $this->resolveRequestHost($request);
 
         if ($custom = $this->resolveByCustomDomain($host)) {
             return $custom;
@@ -104,15 +104,50 @@ class TenantResolver
         return $host === $workplace || str_ends_with($host, '.'.$workplace);
     }
 
+    protected function resolveRequestHost(Request $request): string
+    {
+        $host = strtolower($request->getHost());
+
+        $forwarded = $request->header('X-Forwarded-Host');
+        if ($forwarded) {
+            $forwardedHost = strtolower(trim(explode(',', (string) $forwarded)[0]));
+            $forwardedHost = explode(':', $forwardedHost)[0];
+
+            if ($forwardedHost !== '') {
+                return $forwardedHost;
+            }
+        }
+
+        return $host;
+    }
+
     protected function isPlatformHost(string $host): bool
     {
-        $root = strtolower(config('tenant.root_domain'));
+        $host = strtolower($host);
         $workplace = strtolower(config('tenant.workplace_host'));
 
-        if (in_array($host, ['localhost', '127.0.0.1', $root, 'www.'.$root], true)) {
+        if (in_array($host, ['localhost', '127.0.0.1'], true)) {
             return true;
         }
 
+        if ($this->bareHost($host) === $this->bareHost(strtolower(config('tenant.root_domain')))) {
+            return true;
+        }
+
+        $frontendUrl = env('FRONTEND_URL');
+        if (is_string($frontendUrl) && $frontendUrl !== '') {
+            $frontendHost = parse_url($frontendUrl, PHP_URL_HOST);
+            if (is_string($frontendHost) && $frontendHost !== ''
+                && $this->bareHost($host) === $this->bareHost(strtolower($frontendHost))) {
+                return true;
+            }
+        }
+
         return $host === $workplace || str_ends_with($host, '.'.$workplace);
+    }
+
+    protected function bareHost(string $host): string
+    {
+        return (string) preg_replace('/^www\./', '', $host);
     }
 }
